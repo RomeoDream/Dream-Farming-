@@ -12,7 +12,8 @@ Fourteen generated LSL scripts implement the expanded local farm: six-crop soil/
 - Tests cover ordinary reset/persistence, invalid data, ownership/group access, failed writes, crop/soil behavior, births/pedigree/growth, input/output reservations, all ten recipes, biogas generation, pump conservation, machine coverage/fuel leases, driver expiry, stale board state and invoice idempotency.
 - Garden tests run unchanged upstream Botany v0.3 and FarmManure v0.4 fixtures. Banking tests run the actual pinned Bill Terminal adapter with simulated bank responses. TXAGO and DPC tests exercise their inspected linked-message contracts; they do not run live servers or grids.
 - Fixtures and exact upstream source identifiers are documented in MANURE_AND_GARDEN.md and INTEGRATIONS.md. No upstream repositories were modified.
-- **104 tests pass locally**, using `python -m unittest discover -s tests -v`. GitHub Actions verification of the expansion commit is pending publication.
+- **104 tests pass locally and in GitHub Actions**, using `python -m unittest discover -s tests -v`.
+- Expansion commit `a3f63777208a0356e0d1b4ab9a22b385bc9793b1` passed generated-file checks, compilation and all 104 tests: [successful GitHub Actions run 40193784462](https://github.com/RomeoDream/Dream-Farming-/actions/runs/40193784462).
 
 ## Not yet verified
 
