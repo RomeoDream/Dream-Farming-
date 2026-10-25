@@ -1,0 +1,53 @@
+// Application loads share the durable farm LOAD/ACK receipt ledger. The kind
+// contains a fixed material and cell so retrying while moving cannot move a dose.
+integer hasApplications;
+scanApplications()
+{hasApplications=FALSE;list a=llJson2List(sv(49));integer i;for(i=0;i<64;++i)if(llList2Float(a,i)>0.0)hasApplications=TRUE;}
+string emptyApplications()
+{list a=[];integer i;for(i=0;i<64;++i)a+=[0.0];return llList2Json(JSON_ARRAY,a);}
+integer applicationsValid(string raw)
+{
+    if(llJsonValueType(raw,[])!=JSON_ARRAY)return FALSE;list a=llJson2List(raw);
+    if(llGetListLength(a)!=64)return FALSE;integer i;
+    for(i=0;i<64;++i)if(!numeric(a,i,0.0,1000000.0))return FALSE;return TRUE;
+}
+integer spreadCredit(string kind,integer qty)
+{
+    list p=llParseStringKeepNulls(kind,["|"],[]);
+    if(llGetListLength(p)!=3 || llList2String(p,0)!="SPREAD" || (qty!=1 && qty!=2 && qty!=4))return FALSE;
+    string material=llList2String(p,1);integer m=llListFindList(["MANURE","SLURRY","COMPOST","DIGESTATE"],[material]);
+    integer cell=(integer)llList2String(p,2);
+    if(m<0 || (string)cell!=llList2String(p,2) || cell<0 || cell>63)return FALSE;
+    if(!near(llGetOwner(),40.0) || llGetAgentSize(llGetOwner())==ZERO_VECTOR)return FALSE;
+    list d=llGetObjectDetails(LOAD_SOURCE,[OBJECT_POS,OBJECT_VELOCITY]);if(llGetListLength(d)!=2)return FALSE;
+    if(plotCell(llList2Vector(d,0),llGetPos(),llGetRot())!=cell)return FALSE;
+    float speed=llVecMag(llList2Vector(d,1));if(speed<0.2 || speed>2.5)return FALSE;
+    list a=llJson2List(sv(49));float amount=llList2Float(a,cell)+(float)qty;
+    if(amount>1000000.0)return FALSE;
+    a=llListReplaceList(a,[amount],cell,cell);put(49,[llList2Json(JSON_ARRAY,a)]);
+    hasApplications=TRUE;
+    // Whole-plot nutrients are averages; accumulated cell doses expose overlap.
+    float benefit=(float)qty*llList2Float([0.25,0.18,0.20,0.22],m);
+    float runoff=0.0;if(fv(12)>85.0)runoff=benefit*0.5;
+    if(amount>4.0)runoff+=benefit*0.5;
+    put(47,[clamp(fv(47)+runoff,0.0,1000000.0)]);
+    benefit=clamp(benefit-runoff,0.0,100.0);
+    put(13,[clamp(fv(13)+benefit,0.0,100.0)]);put(14,[clamp(fv(14)+benefit*0.5,0.0,100.0)]);put(15,[clamp(fv(15)+benefit*0.8,0.0,100.0)]);
+    if(m==0 || m==2)put(17,[clamp(fv(17)+(float)qty*0.005,0.0,20.0)]);
+    if(m==1)put(12,[clamp(fv(12)+(float)qty*0.05,0.0,100.0)]);
+    if(iv(8)>0 && (amount>4.0 || fv(13)>90.0))put(11,[clamp(fv(11)-(float)qty*0.5,0.0,100.0)]);
+    return TRUE;
+}
+decayApplications(float dt)
+{
+    if(!hasApplications)return;
+    list a=llJson2List(sv(49));integer i;float factor=llPow(0.95,dt);
+    for(i=0;i<64;++i)a=llListReplaceList(a,[llList2Float(a,i)*factor],i,i);
+    put(49,[llList2Json(JSON_ARRAY,a)]);
+}
+string spreadingReport()
+{
+    list a=llJson2List(sv(49));integer i;float total;integer excessive;
+    for(i=0;i<64;++i){float q=llList2Float(a,i);total+=q;if(q>4.0)++excessive;}
+    return "Recent application load "+(string)total+" RP units | Overloaded cells "+(string)excessive+" / 64 | Runoff index "+(string)fv(47);
+}

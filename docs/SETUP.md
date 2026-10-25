@@ -7,11 +7,13 @@ Rez test objects on land where you may build, run scripts and enable physics. Pa
 | Object | Root scripts | Configuration |
 | --- | --- | --- |
 | Field | `DreamFarm_Field`; optional `DreamFarm_Visuals` | Default 20×20 m working rectangle centered on root, local X/Y axes |
-| Tractor | `DreamFarm_Machine` + `DreamFarm_TractorDriver` | Same root; root +X forward; owner sits on root |
+| Tractor | `DreamFarm_Machine` + `DreamFarm_TractorDriver`; optional `DreamFarm_Cab` | Same root; root +X forward; owner sits on root |
 | Storage shed or parked trailer | `DreamFarm_Storage` | One stock ledger; do not add Machine to this linkset |
 | Processing building | `DreamFarm_Processor` | Select a recipe; one batch at a time |
 | Individual-animal pen | `DreamFarm_Herd` | Manage adds sandbox adults; maximum eight records |
 | Original cohort pen | `DreamFarm_Livestock` | Optional simpler pen; set species before first boot |
+| Manure pit/tank | `DreamFarm_ManureStore` | Finite containment, leakage, cover and separation |
+| Pasture | `DreamFarm_Pasture` | Standing grass, mowing, regrowth and optional herd supply |
 | Compost pile | `DreamFarm_Compost` | One active/curing batch |
 | Water pump/tank | `DreamFarm_Irrigation` | Destination field UUID; enable field irrigation separately |
 | Farm monitor | `DreamFarm_Board` | Up to 16 same-owner roots within 96 m |
@@ -37,14 +39,14 @@ Initial stock and sandbox deliveries are game supplies. They do not represent a 
 
 Start with a simple low-complexity physical linkset and stable collision hull. Decorative meshes, wheels and implements are separate asset work. The driver sets a root sit target at local `<0,0,0.6>` and basic CAR physics parameters.
 
-1. Place both tractor scripts in the same root. Owner sits, grants controls and drives with arrow/WASD controls. Forward target is 4 m/s, reverse 2 m/s; actual movement depends on terrain and simulator load.
+1. Place both tractor scripts in the same root. Owner sits, grants controls and drives with arrow/WASD controls. Travel target is 4 m/s, reverse at most 2 m/s; lowering an implement applies its slower working cap; actual movement depends on terrain and simulator load.
 2. Set Machine **Settings → Destination** to the field root UUID.
-3. Select **Implement**, optionally **Crop**, lower it with **Lower or raise**, and turn **Engine** on.
+3. Select **Implement**, optionally **Crop**, lower it with **Lower or raise**, and turn **Engine** on. Harvest/Spread also require **Cab controls → PTO**. See [FIELD_OPERATIONS.md](FIELD_OPERATIONS.md) for spreading and interlocks.
 4. Drive over each 2.5×2.5 m cell. Coverage uses actual object position/velocity, accepts 0.2–4 m/s and a vertical difference up to 4 m. Drive slowly with overlap.
 5. At 64/64 the field performs the operation once and the implement raises. Sowing also needs a tilled empty field, field seed stock and an allowed season. Harvesting needs ripe crops and storage room.
 6. **Utilities → Field setup → Reset coverage** abandons unfinished coverage without producing anything or refunding fuel. Then start a new machine job.
 
-Coverage survives reset. Machine reset stops the requested engine, requiring manual restart. Driver leases expire after two seconds without confirmation. Unseating and region changes stop the driver. Towing, animated implements, hitches, load-dependent vehicle mass and collision feedback are not implemented.
+Coverage survives reset. Machine reset stops the requested engine, requiring manual restart. Driver leases expire after two seconds without confirmation. Unseating and region changes stop the driver. Towing, animated implements, physical hitch attachment, load-dependent vehicle mass and collision feedback are not implemented.
 
 ## Time and resources
 
@@ -56,8 +58,8 @@ Coverage survives reset. Machine reset stops the requested engine, requiring man
 
 ## Persistence and upgrades
 
-Reset preserves Linkset Data. Field v0.1 migrates to schema 2, moving the existing outbox and receipts without changing identities. Migration is saved atomically before operation. Other existing module schemas remain unchanged. Install new modules in fresh linksets.
+Reset preserves Linkset Data. Field v0.1/v0.2 migrates to schema 3 and Machine v0.2 to schema 2, preserving stock, outbox and receipt identities. Migration is saved atomically before operation. Other existing module schemas remain unchanged. Install new modules in fresh linksets.
 
-Keep delivery endpoints within 8 m, rezzed and running until confirmed. Do not clear receipts, copy live economic objects or relink pending roots as a repair. Each receiver retains eight sender streams; arrange depots/additional receivers before reaching that limit. Deleted destinations and owner changes require audited recovery.
+Keep ordinary delivery endpoints within 8 m (spreading uses its bound field cell and 40 m allowance), rezzed and running until confirmed. Do not clear receipts, copy live economic objects or relink pending roots as a repair. Each receiver retains eight sender streams; arrange depots/additional receivers before reaching that limit. Deleted destinations and owner changes require audited recovery.
 
 Run [IN_WORLD_TESTS.md](IN_WORLD_TESTS.md) before calling an installation production-ready. Every script needs Mono compilation, actual memory measurements and simulator checks.

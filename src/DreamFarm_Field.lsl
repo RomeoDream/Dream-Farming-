@@ -13,10 +13,10 @@ list YIELD=[30.0,45.0,25.0,60.0,20.0,40.0];
 // 27 mature compost kg;28 diesel L;29 equipment wear;30 greenhouse;
 // 31 auto irrigation;32 energy kWh;33 climate power;34..39 local crop kg;
 // 40 crop residue kg;41 harvest count;42 spoilage kg;43 coverage JSON;
-// 44 soil type;45 seed vigor%;46 sowing-window rules;47 reserved moisture;
-// 48 completed machine jobs;49 reserved;50..54 outbox. Schema 1 migrates atomically.
+// 44 soil type;45 seed vigor%;46 sowing-window rules;47 runoff index;
+// 48 completed machine jobs;49 cell application array;50..54 outbox.
 fresh()
-{S=header()+[0,0,0.0,100.0,60.0,65.0,65.0,65.0,6.5,4.0,25.0,0.0,0.0,0.0,0.0,0,12,1000.0,20.0,0.0,50.0,0.0,0,0,100.0,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0.0]+["",0,100.0,0,20.0,0,0]+outbox();}
+{S=header()+[0,0,0.0,100.0,60.0,65.0,65.0,65.0,6.5,4.0,25.0,0.0,0.0,0.0,0.0,0,12,1000.0,20.0,0.0,50.0,0.0,0,0,100.0,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0.0]+["",0,100.0,0,0.0,0,emptyApplications()]+outbox();}
 integer validSpecific(list v)
 {
     integer i;for(i=8;i<43;++i)if(!numeric(v,i,0.0,1000000.0))return FALSE;
@@ -24,7 +24,7 @@ integer validSpecific(list v)
     for(i=11;i<=21;++i)if(!numeric(v,i,0.0,100.0))return FALSE;
     if(!numeric(v,16,0.0,14.0) || !numeric(v,17,0.0,20.0) || !numeric(v,29,0.0,100.0))return FALSE;
     for(i=30;i<=31;++i)if(!whole(v,i,0,1))return FALSE;
-    return whole(v,33,0,1) && whole(v,41,0,1000000) && workValid(llList2String(v,43)) && whole(v,44,0,2) && numeric(v,45,0.0,100.0) && whole(v,46,0,1) && numeric(v,47,0.0,100.0) && whole(v,48,0,1000000) && whole(v,49,0,0);
+    return FIELD_WIDTH>0.0 && FIELD_DEPTH>0.0 && whole(v,33,0,1) && whole(v,41,0,1000000) && workValid(llList2String(v,43)) && whole(v,44,0,2) && numeric(v,45,0.0,100.0) && whole(v,46,0,1) && numeric(v,47,0.0,1000000.0) && whole(v,48,0,1000000) && applicationsValid(llList2String(v,49));
 }
 // Identical farm-day zero across independently installed fields is optional:
 // a fresh object begins its own 120-day temperate year in spring.
@@ -40,6 +40,7 @@ integer stage()
 }
 tick(float dt)
 {
+    decayApplications(dt);
     float temp=temperature(fv(6));float rainfall=rain(fv(6));
     float light=clamp(0.65+0.3*llSin(6.2831853*(fv(6)-5.0)/120.0),0.15,1.0);
     if(iv(30))
@@ -95,6 +96,7 @@ tick(float dt)
 }
 // @include power.lslinc
 // @include field_work.lslinc
+// @include field_spreading.lslinc
 string summary()
 {
     string c="Empty";if(iv(8)>0)c=llList2String(CROPS,iv(8)-1);
@@ -111,7 +113,7 @@ list buttons(string p)
     if(p=="export")return CROPS+["Back","Close"];
     if(p=="storage")return CROPS+["Back","Close"];
     if(p=="soil")return ["Water","Fertilize","Compost","Lime","Weed","Treat pests","Clear crop","Send residue","Back","Close"];
-    if(p=="soiltype")return ["Loam","Clay","Sand","Season rules","Soil test","Reset coverage","Back","Close"];
+    if(p=="soiltype")return ["Loam","Clay","Sand","Season rules","Soil test","Spreading report","Reset coverage","Back","Close"];
     if(p=="utility")return ["Greenhouse","Auto water","Climate power","Refill supplies","Service","Storage","Field setup","Back","Close"];
     return ["Plow","Plant","Harvest","Soil care","Utilities","Export harvest","Settings","Close"];
 }
@@ -123,6 +125,7 @@ string action(string cmd)
     if(cmd=="Season rules"){put(46,[!iv(46)]);return "Sowing window enforcement toggled.";}
     if(cmd=="Reset coverage"){put(43,[""]);return "Coverage cleared; crop and supplies preserved.";}
     if(cmd=="Soil test")return summary()+" | Organic matter "+(string)fv(17)+" | Compaction "+(string)fv(18)+" | Seed quality "+(string)fv(45);
+    if(cmd=="Spreading report")return spreadingReport();
     integer soil=llListFindList(["Loam","Clay","Sand"],[cmd]);if(page=="soiltype" && soil>=0){put(44,[soil]);return "Soil profile selected.";}
     if(cmd=="Plant"){page="plant";return "";}
     if(cmd=="Soil care"){page="soil";return "";}
@@ -196,23 +199,27 @@ string action(string cmd)
 }
 integer credit(string kind,integer qty)
 {
+    if(llSubStringIndex(kind,"SPREAD|")==0)return spreadCredit(kind,qty);
     integer idx=llListFindList(["SEED","WATER","FERTILIZER","COMPOST","DIESEL"],[kind]);
     if(idx>=0)idx+=24;else if(kind=="ENERGY")idx=32;else return FALSE;
     if(fv(idx)+qty>1000000.0)return FALSE;
     if(idx==24)put(idx,[iv(idx)+qty]);else put(idx,[fv(idx)+qty]);return TRUE;
 }
 string visual(){return llList2Json(JSON_OBJECT,["kind",KIND,"stage",stage(),"crop",iv(8),"fault",fault]);}
-extraBoot(){llListen(WORK_NET,"",NULL_KEY,"");}
+extraBoot(){SPREAD_LINKS=TRUE;if(!fault)scanApplications();llListen(WORK_NET,"",NULL_KEY,"");}
 integer extraListen(integer c,key who,string msg){if(c==WORK_NET){fieldWork(who,msg);return TRUE;}return FALSE;}
 service(){sendTransfer();integer watts=0;if(iv(30) && iv(33))watts=2000;reportDemand(watts);}
-integer SCHEMA=2;
+integer SCHEMA=3;
 list migrate(list v)
 {
-    if(llList2Integer(v,0)==1 && llGetListLength(v)>=48 && (llGetListLength(v)-48)%4==0)
+    if(whole(v,0,1,1) && llGetListLength(v)>=48 && (llGetListLength(v)-48)%4==0)
     {v=llList2List(v,0,42)+["",0,100.0,0,20.0,0,0]+llList2List(v,43,-1);v=llListReplaceList(v,[2],0,0);}
+    if(whole(v,0,2,2) && llGetListLength(v)>=55 && (llGetListLength(v)-55)%4==0 && numeric(v,47,0.0,100.0) && whole(v,49,0,0))
+    {v=llListReplaceList(v,[3],0,0);v=llListReplaceList(v,[0.0],47,47);v=llListReplaceList(v,[emptyApplications()],49,49);}
     return v;
 }
 integer textPage(string p){return FALSE;}
 string textPrompt(){return "";}
 extraLink(integer sender,integer number,string text,key id){powerLink(sender,number,text);}
+transferAck(string kind,integer qty){}
 // @include common.lslinc

@@ -47,4 +47,5 @@ extraBoot(){if(AUTO_LOAD){UI_TOUCH=FALSE;UI_HOVER=FALSE;}}
 integer extraListen(integer c,key who,string msg){return FALSE;}
 integer textPage(string p){return FALSE;}
 string textPrompt(){return "";}
+transferAck(string kind,integer qty){}
 // @include common.lslinc

@@ -64,4 +64,5 @@ extraBoot(){}
 extraLink(integer sender,integer number,string text,key id){}
 integer textPage(string p){return p=="add";}
 string textPrompt(){return "Paste a same-owner farm object's root UUID within 96 m.";}
+transferAck(string kind,integer qty){}
 // @include common.lslinc

@@ -2,7 +2,7 @@
 // Owner sits on root, grants controls; arrows/WASD drive, reverse and steer.
 // Every second requires a saved fuel authorization. Fail-closed on lost lease.
 key driver;key pending;integer issued;integer lease;integer controls;
-integer granted;float throttle;float steering;
+integer granted;float throttle;float steering;float speedLimit=4.0;
 stop()
 {
     llSetVehicleVectorParam(VEHICLE_LINEAR_MOTOR_DIRECTION,ZERO_VECTOR);
@@ -20,7 +20,7 @@ seat()
 motor()
 {
     if(!granted || driver!=llAvatarOnSitTarget() || driver!=llGetOwner() || llGetUnixTime()>=lease){stop();return;}
-    float speed=throttle*4.0;if(throttle<0.0)speed=throttle*2.0;
+    float speed=throttle*speedLimit;if(throttle<0.0){float reverse=speedLimit;if(reverse>2.0)reverse=2.0;speed=throttle*reverse;}
     llSetStatus(STATUS_PHYSICS,TRUE);
     llSetVehicleVectorParam(VEHICLE_LINEAR_MOTOR_DIRECTION,<speed,0.0,0.0>);
     llSetVehicleVectorParam(VEHICLE_ANGULAR_MOTOR_DIRECTION,<0.0,0.0,steering*0.7>);
@@ -78,6 +78,9 @@ default
         if(llJsonGetValue(text,["run"])!="1"){stop();pending=NULL_KEY;return;}
         integer until=(integer)llJsonGetValue(text,["until"]);
         if(until<=llGetUnixTime() || until>llGetUnixTime()+2){stop();pending=NULL_KEY;return;}
+        string cap=llJsonGetValue(text,["speed"]);speedLimit=4.0;
+        if(cap!=JSON_INVALID)
+        {speedLimit=(float)cap;if(llJsonValueType(text,["speed"])!=JSON_NUMBER || speedLimit<=0.0 || speedLimit>4.0){stop();pending=NULL_KEY;return;}}
         lease=until;pending=NULL_KEY;motor();
     }
 }

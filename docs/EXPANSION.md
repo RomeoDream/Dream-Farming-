@@ -27,7 +27,7 @@ Storage holds the material catalog, exposes **Inventory**, **Select material**, 
 
 The catalog includes crops, wet grain, hay, silage, feed, water, bedding, manure, compost, slurry, digestate, biogas, energy, diesel, seed, fertilizer, parts, medicine and processed products. Water, milk, diesel and slurry use roleplay litres; energy uses kWh; eggs use counts; other materials use roleplay kilograms. Mixed-unit capacity is a gameplay limit, not a physical trailer mass.
 
-Set source **Settings → Destination** to a receiver root UUID. A source has only one pending load at a time. All farm material delivery is same-owner, same-region and within eight metres. A Storage controller may represent a parked trailer, but hitching/towing and inventory ownership transfer are separate future work. Destinations accept only relevant materials; unsupported loads remain reserved until the receiving setup is corrected.
+Set source **Settings → Destination** to a receiver root UUID. A source has only one pending load at a time. Ordinary farm material delivery is same-owner, same-region and within eight metres. Bound-cell spreading has a separate 40 m allowance; see FIELD_OPERATIONS.md. A Storage controller may represent a parked trailer, but hitching/towing and inventory ownership transfer are separate future work. Destinations accept only relevant materials; unsupported loads remain reserved until the receiving setup is corrected.
 
 ## Individual livestock
 
@@ -46,7 +46,7 @@ Every record retains a UUID, name, sex, age, weight, welfare, parent IDs, inheri
 
 Birth/hatching creates new records with parent IDs and inherited vigor. Young age and weight advance and food demand scales with maturity. A full pen holds the due litter until there is room. Cows produce milk during lactation, adult hens lay eggs, and adult sheep produce wool. Pigs produce offspring and manure, with no meat/slaughter system. These are records, not automatically rezzed animal meshes.
 
-Feed and water are finite and shared across living animals. **Grazing** consumes delivered grass before mixed feed; it does not discover or grow pasture. Poor care reduces health and can cause permanent death. **Treat** consumes medicine on a living animal. **Remove dead** removes active records with no product or money credit. It is not a complete historical pedigree archive.
+Feed and water are finite and shared across living animals. **Grazing** consumes delivered grass before mixed feed; it does not itself discover or grow pasture. The separate Pasture controller now supplies finite grass through the existing delivery protocol. Poor care reduces health and can cause permanent death. **Treat** consumes medicine on a living animal. **Remove dead** removes active records with no product or money credit. It is not a complete historical pedigree archive.
 
 ## Irrigation
 

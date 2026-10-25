@@ -77,11 +77,12 @@ class PersistenceTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_write_failure_rolls_back_and_blocks_further_actions(self):
         w = await World().boot(); before = w.saved()
+        memory_before = list(w.s.S)
         w.fail_writes = True
         await w.action('Plow')
         self.assertTrue(w.s.fault)
         self.assertEqual(before,w.saved())
-        self.assertEqual(before,list(w.s.S))
+        self.assertEqual(memory_before,list(w.s.S))
         w.fail_writes = False
         await w.boot(); await w.action('Plow')
         self.assertEqual(w.saved()[9],1)

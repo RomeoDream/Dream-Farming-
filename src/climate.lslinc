@@ -1,0 +1,7 @@
+// Shared formulas, independent local farm-day clocks; not a global weather server.
+float farmTemperature(float day)
+{return 12.0+14.0*llSin(TWO_PI*(day-5.0)/120.0)+3.0*llSin(day*2.1);}
+float farmRain(float day)
+{if(llSin(day*1.713)+llSin(day*0.391)>0.65)return 12.0;return 0.0;}
+float farmLight(float day)
+{return clamp(0.65+0.3*llSin(TWO_PI*(day-5.0)/120.0),0.15,1.0);}

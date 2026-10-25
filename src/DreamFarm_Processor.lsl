@@ -95,4 +95,5 @@ extraLink(integer sender,integer number,string text,key id){powerLink(sender,num
 integer textPage(string p){return FALSE;}
 string textPrompt(){return "";}
 service(){sendTransfer();integer watts=0;if(iv(10) && iv(9)!=6)watts=4000;reportDemand(watts);}
+transferAck(string kind,integer qty){}
 // @include common.lslinc

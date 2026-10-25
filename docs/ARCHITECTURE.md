@@ -6,7 +6,7 @@ Each controller owns one local state record in its own linkset. No central farm 
 
 | Controller | Linkset Data key | Fixed array length | Output block |
 | --- | --- | --- | --- |
-| Field (schema 2) | `dreamfarm:field:v1` | 55 | 50–54 |
+| Field (schema 3) | `dreamfarm:field:v1` | 55 | 50–54 |
 | Livestock | `dreamfarm:livestock:v1` | 32 | 27–31 |
 | Compost | `dreamfarm:compost:v1` | 29 | 24–28 |
 | Garden applicator | `dreamfarm:applicator:v1` | 20 | 15–19 (destination setting; no farm output) |
@@ -14,12 +14,14 @@ Each controller owns one local state record in its own linkset. No central farm 
 | Storage | `dreamfarm:storage:v1` | 22 | 17–21 |
 | Processor | `dreamfarm:processor:v1` | 25 | 20–24 |
 | Herd | `dreamfarm:herd:v1` | 28 | 23–27 |
-| Machine | `dreamfarm:machine:v1` | 24 | 19–23 (field destination; no material output) |
+| Machine (schema 2) | `dreamfarm:machine:v1` | 39 | 34–38 (field/application outbox) |
+| Manure store | `dreamfarm:manurestore:v1` | 23 | 18–22 |
+| Pasture | `dreamfarm:pasture:v1` | 24 | 19–23 |
 | Irrigation | `dreamfarm:irrigation:v1` | 23 | 18–22 |
 | Board | `dreamfarm:board:v1` | 17 | 12–16 (unused output) |
 | Office | `dreamfarm:office:v1` | 22 | 17–21 (unused output) |
 
-Array indices 0–7 are common: schema number, owner UUID, controller kind, last UTC second, paused flag, speed (1 or 60), simulated days, and frozen excess offline seconds. Module-specific indices are documented in each source. Field migrates schema 1 by inserting seven fields before its old outbox, then atomically saves schema 2. Existing outbox/receipt values remain intact; failed migration saves leave the original bytes and lock operation. The key name remains `:v1` to locate existing data.
+Array indices 0–7 are common: schema number, owner UUID, controller kind, last UTC second, paused flag, speed (1 or 60), simulated days, and frozen excess offline seconds. Module-specific indices are documented in each source. Field migrates schema 1 by inserting seven fields before its old outbox, then upgrades the unused application slots and atomically saves schema 3. Schema 2 upgrades directly. Machine inserts fifteen equipment/hopper fields before its old outbox and saves schema 2. Existing outbox/receipt values remain intact; failed migration saves leave the original bytes and lock operation. The key name remains `:v1` to locate existing data.
 
 Each five-item output block contains destination UUID, sequence counter, reserved quantity, material kind and persistent sender-stream UUID. Up to eight receipt records follow the fixed array. Each receipt is four items: stream UUID, highest accepted sequence, quantity, material kind. Receipts are never evicted.
 
@@ -43,7 +45,7 @@ A matching duplicate returns ACK without crediting again. A replay of an older s
 
 Sender ACK acceptance requires the exact bound destination, stream, current sequence, material and reserved quantity. After a saved ACK, reserved quantity becomes zero. Retries use the same reservation about every 15 seconds. No automatic timeout refund exists. Receipt capacity, unsupported material, pause, distance, full storage or receiver lock can hold a delivery pending. The current alpha exposes pending quantities but has no remote rejection-status API.
 
-Destination change is blocked while a farm load is pending. A destroyed/re-rezzed destination with a changed UUID requires manual audited recovery; retries cannot locate it automatically. Farm transfers work only in the same region and within 8 m. Inventory permissions and anti-copy enforcement are not part of this protocol.
+Destination change is blocked while a farm load is pending. A destroyed/re-rezzed destination with a changed UUID requires manual audited recovery; retries cannot locate it automatically. Ordinary farm transfers work only in the same region and within 8 m. Only Field and Machine enable the `SPREAD|material|cell` lane within 40 m; new application credit additionally validates actual motion and the bound field cell. Inventory permissions and anti-copy enforcement are not part of this protocol.
 
 ## Time
 
@@ -66,6 +68,10 @@ Future adapters should preserve semantic material names, amounts, source identit
 - Pump reservations debit drawn water, leakage and local energy before dispatch. Lost ACKs do not trigger another draw for the same pending load.
 - Office stores one immutable invoice per job before any issue request; only correlated full payment increments the historical total. Completed work orders are manual reports, not authenticated field telemetry.
 - Board readings are ephemeral, explicitly aged and tied to current query nonce plus registered source. Only node registration is persisted.
+- Special spreading loads encode `SPREAD|material|cell` in the immutable material field and use the same durable receipt stream. Only Field/Machine opt into the 40 m lane. Field checks actual current motion/geometry before a new credit; known receipts can acknowledge after movement. Its nutrient effect, application map and receipt share a save. Machine's ACK hook clears the pending-cell reservation and sets its coverage bit in the same save as the cleared outbox.
+- Manure-store leakage/rain/spill counters are saved together. Reserved output is included in capacity and excluded from leakage. Separation changes material stocks and consumes energy in one save.
+- Pasture standing biomass is distinct from cut-grass inventory. Grazing/mowing debit standing stock before transferring/retaining output. Automatic grazing preserves a 100-unit residual; deeper cuts require explicit confirmation.
+- Cab controls are a restricted same-root owner command interface, not a second inventory/controller. Driver speed caps travel with its correlated lease. Cab telemetry is displayed only from the root and is marked stale after 30 seconds.
 
 The local inventory schema is not a future server API. A server migration must establish authoritative IDs and reconciliation rules without importing copied inventories as trustworthy balances. The implemented integration contracts are documented in [INTEGRATIONS.md](INTEGRATIONS.md).
 

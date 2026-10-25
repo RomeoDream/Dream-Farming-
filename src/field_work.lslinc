@@ -1,15 +1,14 @@
 // 8 x 8 work map across a configurable rectangular field. Cell footprints use
 // the actual source object's position and velocity, not coordinates it claims.
 integer WORK_NET=-163847026;
-float FIELD_WIDTH=20.0;
-float FIELD_DEPTH=20.0;
+// @include plot_geometry.lslinc
 integer remoteWork;
 integer workValid(string raw)
 {
     if(raw=="")return TRUE;list w=llJson2List(raw);
     if(llGetListLength(w)!=8 || !uuid(llList2String(w,0)) || !uuid(llList2String(w,1)))return FALSE;
     if(llListFindList(["Plow","Sow","Harvest","Weed"],[llList2String(w,2)])<0)return FALSE;
-    return whole(w,3,0,5) && whole(w,4,-2147483647-1,2147483647) && whole(w,5,-2147483647-1,2147483647) && whole(w,6,0,1) && whole(w,7,0,64);
+    return whole(w,3,0,5) && whole(w,4,-2147483647-1,2147483647) && whole(w,5,-2147483647-1,2147483647) && whole(w,6,0,1) && whole(w,7,0,64) && countCells(llList2Integer(w,4),llList2Integer(w,5))==llList2Integer(w,7) && llList2Integer(w,6)==(llList2Integer(w,7)==64);
 }
 workReply(key source,string job,integer coverage,integer done)
 {llRegionSayTo(source,WORK_NET,llList2Json(JSON_OBJECT,["v",1,"op","WORK_STATUS","job",job,"coverage",coverage,"done",done]));}

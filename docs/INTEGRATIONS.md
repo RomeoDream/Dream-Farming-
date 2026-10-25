@@ -60,6 +60,7 @@ Tests execute the actual pinned bank terminal fixture: issue, reject forged radi
 | Board QUERY/STATUS | Region channel `-163847029` |
 | Farm display/status request | Linked `48100` / `48101` |
 | Driver request/lease/stop | Root-linked `48200` / `48201` / `48202` |
+| Restricted physical cab commands | Root-linked `48300` |
 | Current Garden producer/ACK | Root-linked `47130` / `47131` |
 | Legacy Garden tool | Region channel `-163847020` |
 | TXAGO engine | Linked `-46443536` |

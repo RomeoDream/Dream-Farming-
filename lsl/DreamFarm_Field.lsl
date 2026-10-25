@@ -14,10 +14,10 @@ list YIELD=[30.0,45.0,25.0,60.0,20.0,40.0];
 // 27 mature compost kg;28 diesel L;29 equipment wear;30 greenhouse;
 // 31 auto irrigation;32 energy kWh;33 climate power;34..39 local crop kg;
 // 40 crop residue kg;41 harvest count;42 spoilage kg;43 coverage JSON;
-// 44 soil type;45 seed vigor%;46 sowing-window rules;47 reserved moisture;
-// 48 completed machine jobs;49 reserved;50..54 outbox. Schema 1 migrates atomically.
+// 44 soil type;45 seed vigor%;46 sowing-window rules;47 runoff index;
+// 48 completed machine jobs;49 cell application array;50..54 outbox.
 fresh()
-{S=header()+[0,0,0.0,100.0,60.0,65.0,65.0,65.0,6.5,4.0,25.0,0.0,0.0,0.0,0.0,0,12,1000.0,20.0,0.0,50.0,0.0,0,0,100.0,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0.0]+["",0,100.0,0,20.0,0,0]+outbox();}
+{S=header()+[0,0,0.0,100.0,60.0,65.0,65.0,65.0,6.5,4.0,25.0,0.0,0.0,0.0,0.0,0,12,1000.0,20.0,0.0,50.0,0.0,0,0,100.0,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0.0]+["",0,100.0,0,0.0,0,emptyApplications()]+outbox();}
 integer validSpecific(list v)
 {
     integer i;for(i=8;i<43;++i)if(!numeric(v,i,0.0,1000000.0))return FALSE;
@@ -25,7 +25,7 @@ integer validSpecific(list v)
     for(i=11;i<=21;++i)if(!numeric(v,i,0.0,100.0))return FALSE;
     if(!numeric(v,16,0.0,14.0) || !numeric(v,17,0.0,20.0) || !numeric(v,29,0.0,100.0))return FALSE;
     for(i=30;i<=31;++i)if(!whole(v,i,0,1))return FALSE;
-    return whole(v,33,0,1) && whole(v,41,0,1000000) && workValid(llList2String(v,43)) && whole(v,44,0,2) && numeric(v,45,0.0,100.0) && whole(v,46,0,1) && numeric(v,47,0.0,100.0) && whole(v,48,0,1000000) && whole(v,49,0,0);
+    return FIELD_WIDTH>0.0 && FIELD_DEPTH>0.0 && whole(v,33,0,1) && whole(v,41,0,1000000) && workValid(llList2String(v,43)) && whole(v,44,0,2) && numeric(v,45,0.0,100.0) && whole(v,46,0,1) && numeric(v,47,0.0,1000000.0) && whole(v,48,0,1000000) && applicationsValid(llList2String(v,49));
 }
 // Identical farm-day zero across independently installed fields is optional:
 // a fresh object begins its own 120-day temperate year in spring.
@@ -41,6 +41,7 @@ integer stage()
 }
 tick(float dt)
 {
+    decayApplications(dt);
     float temp=temperature(fv(6));float rainfall=rain(fv(6));
     float light=clamp(0.65+0.3*llSin(6.2831853*(fv(6)-5.0)/120.0),0.15,1.0);
     if(iv(30))
@@ -122,15 +123,30 @@ reportDemand(integer watts)
 // 8 x 8 work map across a configurable rectangular field. Cell footprints use
 // the actual source object's position and velocity, not coordinates it claims.
 integer WORK_NET=-163847026;
+// Same dimensions on Field and Machine; rotate the rectangle with the field root.
 float FIELD_WIDTH=20.0;
 float FIELD_DEPTH=20.0;
+integer plotCell(vector position,vector origin,rotation orientation)
+{
+    if(FIELD_WIDTH<=0.0 || FIELD_DEPTH<=0.0)return -1;
+    vector p=(position-origin)/orientation;
+    if(llFabs(p.z)>4.0 || llFabs(p.x)>FIELD_WIDTH*0.5 || llFabs(p.y)>FIELD_DEPTH*0.5)return -1;
+    integer x=(integer)((p.x+FIELD_WIDTH*0.5)/(FIELD_WIDTH/8.0));
+    integer y=(integer)((p.y+FIELD_DEPTH*0.5)/(FIELD_DEPTH/8.0));
+    if(x>7)x=7;if(y>7)y=7;return y*8+x;
+}
+integer cellMarked(integer a,integer b,integer cell)
+{if(cell<0 || cell>63)return FALSE;if(cell<32)return (a & (1<<cell))!=0;return (b & (1<<(cell-32)))!=0;}
+integer countCells(integer a,integer b)
+{integer i;integer n;for(i=0;i<64;++i)if(cellMarked(a,b,i))++n;return n;}
+
 integer remoteWork;
 integer workValid(string raw)
 {
     if(raw=="")return TRUE;list w=llJson2List(raw);
     if(llGetListLength(w)!=8 || !uuid(llList2String(w,0)) || !uuid(llList2String(w,1)))return FALSE;
     if(llListFindList(["Plow","Sow","Harvest","Weed"],[llList2String(w,2)])<0)return FALSE;
-    return whole(w,3,0,5) && whole(w,4,-2147483647-1,2147483647) && whole(w,5,-2147483647-1,2147483647) && whole(w,6,0,1) && whole(w,7,0,64);
+    return whole(w,3,0,5) && whole(w,4,-2147483647-1,2147483647) && whole(w,5,-2147483647-1,2147483647) && whole(w,6,0,1) && whole(w,7,0,64) && countCells(llList2Integer(w,4),llList2Integer(w,5))==llList2Integer(w,7) && llList2Integer(w,6)==(llList2Integer(w,7)==64);
 }
 workReply(key source,string job,integer coverage,integer done)
 {llRegionSayTo(source,WORK_NET,llList2Json(JSON_OBJECT,["v",1,"op","WORK_STATUS","job",job,"coverage",coverage,"done",done]));}
@@ -192,6 +208,60 @@ fieldWork(key source,string msg)
     if(save(before))workReply(source,job,coverage,llList2Integer(w,6));
 }
 
+// Application loads share the durable farm LOAD/ACK receipt ledger. The kind
+// contains a fixed material and cell so retrying while moving cannot move a dose.
+integer hasApplications;
+scanApplications()
+{hasApplications=FALSE;list a=llJson2List(sv(49));integer i;for(i=0;i<64;++i)if(llList2Float(a,i)>0.0)hasApplications=TRUE;}
+string emptyApplications()
+{list a=[];integer i;for(i=0;i<64;++i)a+=[0.0];return llList2Json(JSON_ARRAY,a);}
+integer applicationsValid(string raw)
+{
+    if(llJsonValueType(raw,[])!=JSON_ARRAY)return FALSE;list a=llJson2List(raw);
+    if(llGetListLength(a)!=64)return FALSE;integer i;
+    for(i=0;i<64;++i)if(!numeric(a,i,0.0,1000000.0))return FALSE;return TRUE;
+}
+integer spreadCredit(string kind,integer qty)
+{
+    list p=llParseStringKeepNulls(kind,["|"],[]);
+    if(llGetListLength(p)!=3 || llList2String(p,0)!="SPREAD" || (qty!=1 && qty!=2 && qty!=4))return FALSE;
+    string material=llList2String(p,1);integer m=llListFindList(["MANURE","SLURRY","COMPOST","DIGESTATE"],[material]);
+    integer cell=(integer)llList2String(p,2);
+    if(m<0 || (string)cell!=llList2String(p,2) || cell<0 || cell>63)return FALSE;
+    if(!near(llGetOwner(),40.0) || llGetAgentSize(llGetOwner())==ZERO_VECTOR)return FALSE;
+    list d=llGetObjectDetails(LOAD_SOURCE,[OBJECT_POS,OBJECT_VELOCITY]);if(llGetListLength(d)!=2)return FALSE;
+    if(plotCell(llList2Vector(d,0),llGetPos(),llGetRot())!=cell)return FALSE;
+    float speed=llVecMag(llList2Vector(d,1));if(speed<0.2 || speed>2.5)return FALSE;
+    list a=llJson2List(sv(49));float amount=llList2Float(a,cell)+(float)qty;
+    if(amount>1000000.0)return FALSE;
+    a=llListReplaceList(a,[amount],cell,cell);put(49,[llList2Json(JSON_ARRAY,a)]);
+    hasApplications=TRUE;
+    // Whole-plot nutrients are averages; accumulated cell doses expose overlap.
+    float benefit=(float)qty*llList2Float([0.25,0.18,0.20,0.22],m);
+    float runoff=0.0;if(fv(12)>85.0)runoff=benefit*0.5;
+    if(amount>4.0)runoff+=benefit*0.5;
+    put(47,[clamp(fv(47)+runoff,0.0,1000000.0)]);
+    benefit=clamp(benefit-runoff,0.0,100.0);
+    put(13,[clamp(fv(13)+benefit,0.0,100.0)]);put(14,[clamp(fv(14)+benefit*0.5,0.0,100.0)]);put(15,[clamp(fv(15)+benefit*0.8,0.0,100.0)]);
+    if(m==0 || m==2)put(17,[clamp(fv(17)+(float)qty*0.005,0.0,20.0)]);
+    if(m==1)put(12,[clamp(fv(12)+(float)qty*0.05,0.0,100.0)]);
+    if(iv(8)>0 && (amount>4.0 || fv(13)>90.0))put(11,[clamp(fv(11)-(float)qty*0.5,0.0,100.0)]);
+    return TRUE;
+}
+decayApplications(float dt)
+{
+    if(!hasApplications)return;
+    list a=llJson2List(sv(49));integer i;float factor=llPow(0.95,dt);
+    for(i=0;i<64;++i)a=llListReplaceList(a,[llList2Float(a,i)*factor],i,i);
+    put(49,[llList2Json(JSON_ARRAY,a)]);
+}
+string spreadingReport()
+{
+    list a=llJson2List(sv(49));integer i;float total;integer excessive;
+    for(i=0;i<64;++i){float q=llList2Float(a,i);total+=q;if(q>4.0)++excessive;}
+    return "Recent application load "+(string)total+" RP units | Overloaded cells "+(string)excessive+" / 64 | Runoff index "+(string)fv(47);
+}
+
 string summary()
 {
     string c="Empty";if(iv(8)>0)c=llList2String(CROPS,iv(8)-1);
@@ -208,7 +278,7 @@ list buttons(string p)
     if(p=="export")return CROPS+["Back","Close"];
     if(p=="storage")return CROPS+["Back","Close"];
     if(p=="soil")return ["Water","Fertilize","Compost","Lime","Weed","Treat pests","Clear crop","Send residue","Back","Close"];
-    if(p=="soiltype")return ["Loam","Clay","Sand","Season rules","Soil test","Reset coverage","Back","Close"];
+    if(p=="soiltype")return ["Loam","Clay","Sand","Season rules","Soil test","Spreading report","Reset coverage","Back","Close"];
     if(p=="utility")return ["Greenhouse","Auto water","Climate power","Refill supplies","Service","Storage","Field setup","Back","Close"];
     return ["Plow","Plant","Harvest","Soil care","Utilities","Export harvest","Settings","Close"];
 }
@@ -220,6 +290,7 @@ string action(string cmd)
     if(cmd=="Season rules"){put(46,[!iv(46)]);return "Sowing window enforcement toggled.";}
     if(cmd=="Reset coverage"){put(43,[""]);return "Coverage cleared; crop and supplies preserved.";}
     if(cmd=="Soil test")return summary()+" | Organic matter "+(string)fv(17)+" | Compaction "+(string)fv(18)+" | Seed quality "+(string)fv(45);
+    if(cmd=="Spreading report")return spreadingReport();
     integer soil=llListFindList(["Loam","Clay","Sand"],[cmd]);if(page=="soiltype" && soil>=0){put(44,[soil]);return "Soil profile selected.";}
     if(cmd=="Plant"){page="plant";return "";}
     if(cmd=="Soil care"){page="soil";return "";}
@@ -293,26 +364,30 @@ string action(string cmd)
 }
 integer credit(string kind,integer qty)
 {
+    if(llSubStringIndex(kind,"SPREAD|")==0)return spreadCredit(kind,qty);
     integer idx=llListFindList(["SEED","WATER","FERTILIZER","COMPOST","DIESEL"],[kind]);
     if(idx>=0)idx+=24;else if(kind=="ENERGY")idx=32;else return FALSE;
     if(fv(idx)+qty>1000000.0)return FALSE;
     if(idx==24)put(idx,[iv(idx)+qty]);else put(idx,[fv(idx)+qty]);return TRUE;
 }
 string visual(){return llList2Json(JSON_OBJECT,["kind",KIND,"stage",stage(),"crop",iv(8),"fault",fault]);}
-extraBoot(){llListen(WORK_NET,"",NULL_KEY,"");}
+extraBoot(){SPREAD_LINKS=TRUE;if(!fault)scanApplications();llListen(WORK_NET,"",NULL_KEY,"");}
 integer extraListen(integer c,key who,string msg){if(c==WORK_NET){fieldWork(who,msg);return TRUE;}return FALSE;}
 service(){sendTransfer();integer watts=0;if(iv(30) && iv(33))watts=2000;reportDemand(watts);}
-integer SCHEMA=2;
+integer SCHEMA=3;
 list migrate(list v)
 {
-    if(llList2Integer(v,0)==1 && llGetListLength(v)>=48 && (llGetListLength(v)-48)%4==0)
+    if(whole(v,0,1,1) && llGetListLength(v)>=48 && (llGetListLength(v)-48)%4==0)
     {v=llList2List(v,0,42)+["",0,100.0,0,20.0,0,0]+llList2List(v,43,-1);v=llListReplaceList(v,[2],0,0);}
+    if(whole(v,0,2,2) && llGetListLength(v)>=55 && (llGetListLength(v)-55)%4==0 && numeric(v,47,0.0,100.0) && whole(v,49,0,0))
+    {v=llListReplaceList(v,[3],0,0);v=llListReplaceList(v,[0.0],47,47);v=llListReplaceList(v,[emptyApplications()],49,49);}
     return v;
 }
 integer textPage(string p){return FALSE;}
 string textPrompt(){return "";}
 extraLink(integer sender,integer number,string text,key id){powerLink(sender,number,text);}
-// Dream Farming 0.2.0 alpha. Project and creator credit: Romeo Dream.
+transferAck(string kind,integer qty){}
+// Dream Farming 0.3.0 alpha. Project and creator credit: Romeo Dream.
 // Cooperative roleplay; local persistent state, no external server or currency.
 integer NET = -163847025;
 integer VIEW = 48100;
@@ -330,6 +405,9 @@ integer GROUP_WORK=FALSE; // opt-in active-group farm workers; owner retains set
 integer DASH=-163847029;
 integer UI_TOUCH=TRUE;
 integer UI_HOVER=TRUE;
+integer UI_ROOT_ONLY=FALSE;
+integer SPREAD_LINKS=FALSE;
+key LOAD_SOURCE;
 
 integer iv(integer i) { return llList2Integer(S,i); }
 float fv(integer i) { return llList2Float(S,i); }
@@ -359,6 +437,8 @@ integer workerCommand(string cmd)
 {return llListFindList(["Plow","Plant","Harvest","Soil care","Water","Weed","Treat pests","Muck out","Collect produce","Turn pile","Water pile","Dry pile","Start batch","Run batch","Start job","Finish job","Next job","Status","Back","Close","Wheat","Corn","Soybean","Potato","Sunflower","Grass"],[cmd])>=0;}
 integer ownerNear()
 {return llGetAgentSize(llGetOwner())!=ZERO_VECTOR && near(llGetOwner(),8.0);}
+float transferRange(string kind)
+{if(SPREAD_LINKS && llSubStringIndex(kind,"SPREAD|")==0)return 40.0;return 8.0;}
 integer save(list before)
 {
     integer r=llLinksetDataWrite(DATA,llList2Json(JSON_ARRAY,S));
@@ -405,7 +485,7 @@ list outbox() { return ["",0,0,"",(string)llGenerateKey()]; }
 integer startTransfer(string kind,integer qty)
 {
     if(iv(OUT+2)>0 || !uuid(sv(OUT)) || iv(OUT+1)>=1000000000)return FALSE;
-    if(!near((key)sv(OUT),8.0) || llGetOwnerKey((key)sv(OUT))!=llGetOwner())return FALSE;
+    if(!near((key)sv(OUT),transferRange(kind)) || llGetOwnerKey((key)sv(OUT))!=llGetOwner())return FALSE;
     put(OUT+1,[iv(OUT+1)+1]);put(OUT+2,[qty]);put(OUT+3,[kind]);return TRUE;
 }
 sendTransfer()
@@ -459,7 +539,7 @@ receive(key source,string msg)
 {
     if(fault || llStringLength(msg)>1000 || llJsonValueType(msg,[])!=JSON_OBJECT)return;
     if(llJsonGetValue(msg,["v"])!="1" || llJsonGetValue(msg,["target"])!=(string)llGetKey())return;
-    if(llGetAgentSize(source)!=ZERO_VECTOR || llGetOwnerKey(source)!=llGetOwner() || !near(source,8.0))return;
+    if(llGetAgentSize(source)!=ZERO_VECTOR || llGetOwnerKey(source)!=llGetOwner() || !near(source,transferRange(llJsonGetValue(msg,["kind"]))))return;
     string op=llJsonGetValue(msg,["op"]);string id=llJsonGetValue(msg,["stream"]);
     string kind=llJsonGetValue(msg,["kind"]);
     if(!uuid(id) || llJsonValueType(msg,["seq"])!=JSON_NUMBER || llJsonValueType(msg,["qty"])!=JSON_NUMBER)return;
@@ -469,7 +549,7 @@ receive(key source,string msg)
     if(op=="ACK")
     {
         if(source!=(key)sv(OUT) || id!=sv(OUT+4) || seq!=iv(OUT+1) || qty!=iv(OUT+2) || kind!=sv(OUT+3))return;
-        list before=S;put(OUT+2,[0]);if(save(before))llOwnerSay("Delivery confirmed: "+kind+" "+(string)qty);return;
+        list before=S;put(OUT+2,[0]);transferAck(kind,qty);if(save(before))llOwnerSay("Delivery confirmed: "+kind+" "+(string)qty);return;
     }
     if(op!="LOAD")return;
     integer i;integer found=-1;
@@ -482,6 +562,7 @@ receive(key source,string msg)
     if(found<0 && llGetListLength(S)>=BASE+32)return; // Never evict receipts.
     if(!advance() || iv(4))return;
     list before=S;
+    LOAD_SOURCE=source;
     if(!credit(kind,qty)){S=before;return;}
     if(found<0)S+=[id,seq,qty,kind];
     else S=llListReplaceList(S,[id,seq,qty,kind],found,found+3);
@@ -522,6 +603,7 @@ default
     touch_start(integer count)
     {
         if(!UI_TOUCH || !permitted(llDetectedKey(0)) || fault)return;
+        if(UI_ROOT_ONLY && llDetectedLinkNumber(0)>1)return;
         visitor=llDetectedKey(0);
         if(!advance()){llOwnerSay("Catching up saved farm time. Try again shortly.");return;}
         show("main");render();

@@ -2,6 +2,8 @@
 
 Animals consume feed/water and generate `MANURE`. Cleaning consumes bedding and retains `BROWNS`; fields also provide dry residue. Only completed, cured farm compost is exported as `COMPOST`.
 
+Version 0.3 also provides a finite manure store/separator and tractor spreading with per-cell dosing, runoff and overapplication stress. See [FIELD_OPERATIONS.md](FIELD_OPERATIONS.md). Direct raw-manure field application is a separate deliberate spreader path; it does not label raw manure as mature compost or change Garden's native compost requirements.
+
 ## Farm compost recipes
 
 | Menu choice | Inputs | Modeled initial C:N | Mature output |

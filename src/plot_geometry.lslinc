@@ -1,0 +1,16 @@
+// Same dimensions on Field and Machine; rotate the rectangle with the field root.
+float FIELD_WIDTH=20.0;
+float FIELD_DEPTH=20.0;
+integer plotCell(vector position,vector origin,rotation orientation)
+{
+    if(FIELD_WIDTH<=0.0 || FIELD_DEPTH<=0.0)return -1;
+    vector p=(position-origin)/orientation;
+    if(llFabs(p.z)>4.0 || llFabs(p.x)>FIELD_WIDTH*0.5 || llFabs(p.y)>FIELD_DEPTH*0.5)return -1;
+    integer x=(integer)((p.x+FIELD_WIDTH*0.5)/(FIELD_WIDTH/8.0));
+    integer y=(integer)((p.y+FIELD_DEPTH*0.5)/(FIELD_DEPTH/8.0));
+    if(x>7)x=7;if(y>7)y=7;return y*8+x;
+}
+integer cellMarked(integer a,integer b,integer cell)
+{if(cell<0 || cell>63)return FALSE;if(cell<32)return (a & (1<<cell))!=0;return (b & (1<<(cell-32)))!=0;}
+integer countCells(integer a,integer b)
+{integer i;integer n;for(i=0;i<64;++i)if(cellMarked(a,b,i))++n;return n;}

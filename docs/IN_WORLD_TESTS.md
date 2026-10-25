@@ -4,7 +4,7 @@ Record Second Life viewer/server version, Mono compile result, free memory, scri
 
 | Test | Expected result | Result |
 | --- | --- | --- |
-| Compile all fourteen generated scripts as Mono | No errors; valid default state | Pending |
+| Compile all seventeen generated scripts as Mono | No errors; valid default state | Pending |
 | Diagnostics at maximum herd, stock, ledger and receipt occupancy | Record actual free memory; no stack/heap collisions during updates | Pending |
 | Every menu, material page and Unicode textbox | Buttons fit, text fits viewer byte limits, correct actor and channel | Pending |
 | Stranger/group/assigned-worker access | Only configured care/job actions; no unauthorized restock, transfer or invoice | Pending |
@@ -16,6 +16,17 @@ Record Second Life viewer/server version, Mono compile result, free memory, scri
 | Tractor seat/control/engine | Owner permissions; no movement before valid fuel lease | Pending |
 | Out of fuel, permission loss, driver stop, unseat, reset and region change | Motion stops; reset requires manual engine restart | Pending |
 | Physical slopes, collisions and simulator lag | Stable hull; speed/range gates understandable; no runaway motor | Pending |
+| PTO, hydraulic circuit and hitch controls | No new qualifying work while interlocked; detach needs stopped/raised state | Pending |
+| Named cab buttons, lights and calibrated needles | Only named children change; owner commands and root menus work; stale fault appears after 30 s | Pending |
+| Filter/fluid depletion and service kit | Required parts consumed; engine hours retained; work caps reach driver | Pending |
+| Full spread pass on a rotated field | Each actual cell consumes one configured dose and changes soil once | Pending |
+| Spread packet lost before field receipt, then move | Reservation stays tied to original cell; returning allows completion | Pending |
+| Spread ACK lost after field receipt, then reset/move | Receipt replay clears original reservation without another application | Pending |
+| Wet/excessive application and repeated deliberate pass | Runoff/application-pressure indices and crop stress respond; ordinary manure inlet still rejects | Pending |
+| Manure storage full, uncovered rain, worn liner and repair | Capacity enforced; losses recorded; repair never refunds spilled stock | Pending |
+| Slurry agitation/separation | Exact finite inputs/outputs and local energy consumed once | Pending |
+| Pasture mowing, low cut, drought, rest and reseeding | Standing/cut stock conserved; low cover harms growth; supplies consumed | Pending |
+| Pasture → Herd and Pasture → Baler under retries | One grass credit per saved load; residual retained; no duplicate feed | Pending |
 | Plow/sow/weed/harvest all 64 cells | Actual movement counts each cell once; final operation occurs once | Pending |
 | Leave field, drive too fast, stop or switch unfinished job | Invalid work rejected; explicit coverage reset available | Pending |
 | Field seed empty, season closed or harvest storage full at final cell | Final operation and final cell remain unapplied | Pending |

@@ -55,4 +55,5 @@ integer extraListen(integer c,key who,string msg){return FALSE;}
 extraLink(integer sender,integer number,string text,key id){powerLink(sender,number,text);}
 integer textPage(string p){return FALSE;}
 string textPrompt(){return "";}
+transferAck(string kind,integer qty){}
 // @include common.lslinc

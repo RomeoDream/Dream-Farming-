@@ -175,4 +175,5 @@ extraLink(integer sender,integer number,string text,key id){}
 integer textPage(string p){return p=="rename";}
 string textPrompt(){return "Name the selected animal (1-24 characters).";}
 service(){sendTransfer();}
+transferAck(string kind,integer qty){}
 // @include common.lslinc

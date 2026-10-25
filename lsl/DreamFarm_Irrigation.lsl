@@ -80,7 +80,8 @@ integer extraListen(integer c,key who,string msg){return FALSE;}
 extraLink(integer sender,integer number,string text,key id){powerLink(sender,number,text);}
 integer textPage(string p){return FALSE;}
 string textPrompt(){return "";}
-// Dream Farming 0.2.0 alpha. Project and creator credit: Romeo Dream.
+transferAck(string kind,integer qty){}
+// Dream Farming 0.3.0 alpha. Project and creator credit: Romeo Dream.
 // Cooperative roleplay; local persistent state, no external server or currency.
 integer NET = -163847025;
 integer VIEW = 48100;
@@ -98,6 +99,9 @@ integer GROUP_WORK=FALSE; // opt-in active-group farm workers; owner retains set
 integer DASH=-163847029;
 integer UI_TOUCH=TRUE;
 integer UI_HOVER=TRUE;
+integer UI_ROOT_ONLY=FALSE;
+integer SPREAD_LINKS=FALSE;
+key LOAD_SOURCE;
 
 integer iv(integer i) { return llList2Integer(S,i); }
 float fv(integer i) { return llList2Float(S,i); }
@@ -127,6 +131,8 @@ integer workerCommand(string cmd)
 {return llListFindList(["Plow","Plant","Harvest","Soil care","Water","Weed","Treat pests","Muck out","Collect produce","Turn pile","Water pile","Dry pile","Start batch","Run batch","Start job","Finish job","Next job","Status","Back","Close","Wheat","Corn","Soybean","Potato","Sunflower","Grass"],[cmd])>=0;}
 integer ownerNear()
 {return llGetAgentSize(llGetOwner())!=ZERO_VECTOR && near(llGetOwner(),8.0);}
+float transferRange(string kind)
+{if(SPREAD_LINKS && llSubStringIndex(kind,"SPREAD|")==0)return 40.0;return 8.0;}
 integer save(list before)
 {
     integer r=llLinksetDataWrite(DATA,llList2Json(JSON_ARRAY,S));
@@ -173,7 +179,7 @@ list outbox() { return ["",0,0,"",(string)llGenerateKey()]; }
 integer startTransfer(string kind,integer qty)
 {
     if(iv(OUT+2)>0 || !uuid(sv(OUT)) || iv(OUT+1)>=1000000000)return FALSE;
-    if(!near((key)sv(OUT),8.0) || llGetOwnerKey((key)sv(OUT))!=llGetOwner())return FALSE;
+    if(!near((key)sv(OUT),transferRange(kind)) || llGetOwnerKey((key)sv(OUT))!=llGetOwner())return FALSE;
     put(OUT+1,[iv(OUT+1)+1]);put(OUT+2,[qty]);put(OUT+3,[kind]);return TRUE;
 }
 sendTransfer()
@@ -227,7 +233,7 @@ receive(key source,string msg)
 {
     if(fault || llStringLength(msg)>1000 || llJsonValueType(msg,[])!=JSON_OBJECT)return;
     if(llJsonGetValue(msg,["v"])!="1" || llJsonGetValue(msg,["target"])!=(string)llGetKey())return;
-    if(llGetAgentSize(source)!=ZERO_VECTOR || llGetOwnerKey(source)!=llGetOwner() || !near(source,8.0))return;
+    if(llGetAgentSize(source)!=ZERO_VECTOR || llGetOwnerKey(source)!=llGetOwner() || !near(source,transferRange(llJsonGetValue(msg,["kind"]))))return;
     string op=llJsonGetValue(msg,["op"]);string id=llJsonGetValue(msg,["stream"]);
     string kind=llJsonGetValue(msg,["kind"]);
     if(!uuid(id) || llJsonValueType(msg,["seq"])!=JSON_NUMBER || llJsonValueType(msg,["qty"])!=JSON_NUMBER)return;
@@ -237,7 +243,7 @@ receive(key source,string msg)
     if(op=="ACK")
     {
         if(source!=(key)sv(OUT) || id!=sv(OUT+4) || seq!=iv(OUT+1) || qty!=iv(OUT+2) || kind!=sv(OUT+3))return;
-        list before=S;put(OUT+2,[0]);if(save(before))llOwnerSay("Delivery confirmed: "+kind+" "+(string)qty);return;
+        list before=S;put(OUT+2,[0]);transferAck(kind,qty);if(save(before))llOwnerSay("Delivery confirmed: "+kind+" "+(string)qty);return;
     }
     if(op!="LOAD")return;
     integer i;integer found=-1;
@@ -250,6 +256,7 @@ receive(key source,string msg)
     if(found<0 && llGetListLength(S)>=BASE+32)return; // Never evict receipts.
     if(!advance() || iv(4))return;
     list before=S;
+    LOAD_SOURCE=source;
     if(!credit(kind,qty)){S=before;return;}
     if(found<0)S+=[id,seq,qty,kind];
     else S=llListReplaceList(S,[id,seq,qty,kind],found,found+3);
@@ -290,6 +297,7 @@ default
     touch_start(integer count)
     {
         if(!UI_TOUCH || !permitted(llDetectedKey(0)) || fault)return;
+        if(UI_ROOT_ONLY && llDetectedLinkNumber(0)>1)return;
         visitor=llDetectedKey(0);
         if(!advance()){llOwnerSay("Catching up saved farm time. Try again shortly.");return;}
         show("main");render();

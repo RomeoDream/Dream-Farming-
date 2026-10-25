@@ -61,6 +61,8 @@ class World:
         self.physics = False
         self.motors = {}
         self.permission_requests = []
+        self.link_names = {2:'DF:Stage:0',3:'DF:Stage:1',4:'DF:Stage:2',5:'DF:Stage:3',6:'DF:Stage:4',7:'DF:Stage:5',8:'Fence',9:'DF:Stage:invalid'}
+        self.prim_params = {}
 
     def write(self, key, value):
         if self.fail_writes: return 1
@@ -82,6 +84,9 @@ class World:
         if request == [3,5]:
             w=self.net.worlds.get(who)
             return [w.position,w.velocity] if w else []
+        if request == [3,4]:
+            w=self.net.worlds.get(who)
+            return [w.position,w.rotation] if w else []
         raise AssertionError(request)
 
     def object_owner(self, who):
@@ -129,7 +134,8 @@ class World:
             'llTextBox': lambda who, text, ch: self.dialog(who, text, [], ch),
             'llGetLinkNumber': lambda: 1,
             'llGetNumberOfPrims': lambda: 9,
-            'llGetLinkName': lambda n: {2:'DF:Stage:0',3:'DF:Stage:1',4:'DF:Stage:2',5:'DF:Stage:3',6:'DF:Stage:4',7:'DF:Stage:5',8:'Fence',9:'DF:Stage:invalid'}.get(n,'Root'),
+            'llGetLinkName': lambda n: self.link_names.get(n,'Root'),
+            'llSetLinkPrimitiveParamsFast': lambda link,params: self.prim_params.update({link:params}),
             'llSetLinkAlpha': lambda link, alpha, side: self.alpha.update({link:alpha}),
             'llSetVehicleType': lambda kind: None,
             'llSetVehicleVectorParam': lambda key,value: self.motors.update({key:value}),

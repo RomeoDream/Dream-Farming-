@@ -113,4 +113,5 @@ extraBoot(){}
 integer extraListen(integer c,key who,string msg){return FALSE;}
 integer textPage(string p){return p=="newjob" || p=="invoice";}
 string textPrompt(){if(page=="newjob")return "Work title (3-80 characters)|assigned worker UUID. Omit UUID to assign yourself.";return "Payer avatar UUID|amount in integer RP cents|due days. Example: avatar-uuid|2500|7";}
+transferAck(string kind,integer qty){}
 // @include common.lslinc

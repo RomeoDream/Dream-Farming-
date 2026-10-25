@@ -135,4 +135,5 @@ list migrate(list v){return v;}
 integer textPage(string p){return FALSE;}
 string textPrompt(){return "";}
 extraLink(integer sender,integer number,string text,key id){}
+transferAck(string kind,integer qty){}
 // @include common.lslinc

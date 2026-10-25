@@ -51,7 +51,7 @@ class FieldWorkTests(unittest.IsolatedAsyncioTestCase):
         s += [str(key()),2,10,'COMPOST']
         self.field.store[self.field.s.DATA]=json.dumps(s)
         await self.field.boot();m=self.field.saved()
-        self.assertEqual(m[0],2);self.assertEqual(m[50:],s[43:]);self.assertEqual(m[8:43],s[8:43])
+        self.assertEqual(m[0],3);self.assertEqual(m[50:],s[43:]);self.assertEqual(m[8:43],s[8:43])
 
     async def test_migration_write_failure_preserves_old_bytes(self):
         old=self.field.saved();old[0]=1;del old[43:50]
