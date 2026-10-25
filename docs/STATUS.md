@@ -4,14 +4,14 @@ Version **0.1.0 alpha**, project credit **Romeo Dream**.
 
 Implemented: five paste-ready LSL scripts, persistent local farming/livestock/compost behavior, material transfer reservations and receipts, and the existing Dream-Garden Botany fertilizer bridge. No external server is required.
 
-## Local verification
+## Verification
 
 - All five generated scripts compile with Lummao 0.5.2.
 - Generated copies match source includes.
 - Actual LSL behavior tests cover persistence, invalid records, ownership, resource consumption, crop growth/harvest, spoilage, animal production/births, compost maturity, replay/lost delivery, failed writes and Garden integration.
 - Tests use an unchanged Garden Botany fixture at blob `e51355c56537c5ca6133a35db66382d03862c05b`.
 - Current suite: **54 tests passing locally**. The test command is `python -m unittest discover -s tests -v`.
-- GitHub Actions workflow is included. Its execution status must be checked separately; local success is not a claim that CI ran.
+- GitHub Actions also passed compilation, generated-file checks and all 54 tests at commit `704b07f0342423254f99ab3bce37318c38648600`: [successful run 40188834982](https://github.com/RomeoDream/Dream-Farming-/actions/runs/40188834982). An initial cache-configuration failure was corrected by specifying `requirements-dev.txt`.
 
 ## Not yet verified
 
