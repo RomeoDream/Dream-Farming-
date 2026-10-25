@@ -15,7 +15,8 @@ The v0.3 milestone adds manure containment/separation, pasture growth and grazin
 - New tests cover spreading in rotated coordinates, full 64-cell coverage, losses before/after field receipt, moving/restarted sources, reserved hopper capacity, overapplication, manure leaks/separation, pasture/hay chains, cab command filtering and stale indicators.
 - Garden tests run unchanged upstream Botany v0.3 and FarmManure v0.4 fixtures. Banking tests run the actual pinned Bill Terminal adapter with simulated bank responses. TXAGO and DPC tests exercise their inspected linked-message contracts; they do not run live servers or grids.
 - Fixtures and exact upstream source identifiers are documented in MANURE_AND_GARDEN.md and INTEGRATIONS.md. No upstream repositories were modified.
-- **135 tests pass locally**, using `python -m unittest discover -s tests -v`. This includes 31 new field-operation tests. GitHub verification of this new milestone is pending publication.
+- **135 tests pass locally and in GitHub Actions**, using `python -m unittest discover -s tests -v`. This includes 31 new field-operation tests.
+- Field-operations commit `a7b11a48f12d561eefe4d37b50d3f3f20fa3140b` passed generated-file checks, compilation and all 135 tests: [successful GitHub Actions run 40238467507](https://github.com/RomeoDream/Dream-Farming-/actions/runs/40238467507).
 - Previous v0.2 expansion commit `a3f63777208a0356e0d1b4ab9a22b385bc9793b1` passed generated-file checks, compilation and all 104 tests: [successful GitHub Actions run 40193784462](https://github.com/RomeoDream/Dream-Farming-/actions/runs/40193784462).
 
 ## Not yet verified
