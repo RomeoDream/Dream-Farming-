@@ -70,7 +70,7 @@ string summary()
 list buttons(string p)
 {
     if(p=="settings")return ["Destination","Pause","Resume","Normal","Demo x60","Back","Close"];
-    return ["Feed 100","Water 200","Bedding 20","Muck out","Send manure","Send bedding","Breed","Collect produce","Treat","Settings","Close"];
+    return ["Feed 100","Water 200","Bedding 20","Muck out","Send manure","Send bedding","Breed","Collect produce","Send produce","Treat","Settings","Close"];
 }
 string action(string cmd)
 {
@@ -104,6 +104,14 @@ string action(string cmd)
         if(fv(14)<80.0 || fv(16)>20.0 || fv(20)>=0.0)return "Breeding requires good health, low stress and no active pregnancy/incubation.";
         put(20,[0.0]);return "Roleplay breeding service started. Young are recorded, not rezzed. Chickens use incubation time.";
     }
+    if(cmd=="Send produce")
+    {
+        integer sp=speciesIndex();if(sp==3)return "Pigs produce offspring; no packaged produce.";
+        if(fv(19)<1.0)return "No whole produce unit available.";
+        string k=llList2String(["MILK","EGGS","WOOL"],sp);
+        if(!startTransfer(k,1))return "Set a nearby storage/processor destination.";
+        put(19,[fv(19)-1.0]);return "One produce unit reserved for delivery.";
+    }
     if(cmd=="Collect produce")
     {
         integer qty=(integer)fv(19);put(19,[fv(19)-(float)qty]);return "Collected/consumed "+(string)qty+" local produce units for roleplay. No inventory item delivered.";
@@ -112,9 +120,19 @@ string action(string cmd)
     {if(fv(14)<=0.0)return "Cannot revive a dead animal.";put(14,[clamp(fv(14)+15.0,0.0,100.0)]);return "Roleplay veterinary care applied. Feed, water and clean the pen too.";}
     return "";
 }
-integer credit(string kind,integer qty){return FALSE;}
+integer credit(string kind,integer qty)
+{
+    integer i=-1;if(kind=="FEED" || kind=="HAY" || kind=="SILAGE")i=9;
+    if(kind=="WATER")i=10;if(kind=="BEDDING" || kind=="BROWNS")i=11;
+    if(i<0 || fv(i)+qty>1000000.0)return FALSE;put(i,[fv(i)+qty]);return TRUE;
+}
 string visual(){return llList2Json(JSON_OBJECT,["kind",KIND,"health",fv(14),"manure",fv(17),"fault",fault]);}
 extraBoot(){}
 integer extraListen(integer c,key who,string msg){return FALSE;}
 service(){sendTransfer();}
+integer SCHEMA=1;
+list migrate(list v){return v;}
+integer textPage(string p){return FALSE;}
+string textPrompt(){return "";}
+extraLink(integer sender,integer number,string text,key id){}
 // @include common.lslinc

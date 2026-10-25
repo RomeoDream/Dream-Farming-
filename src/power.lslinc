@@ -1,0 +1,24 @@
+// Optional exact Dream Power Company appliance interface. Install configured
+// DPC_Appliance in SAME ROOT with EXTERNAL_DEMAND=1. Trusted linked scripts only.
+integer USE_DPC=FALSE;
+integer dpcOn;
+integer dpcSeen;
+integer dpcDemandAt;
+integer gridLive(){return USE_DPC && dpcOn && llGetUnixTime()-dpcSeen<=45;}
+powerLink(integer sender,integer number,string text)
+{
+    if(!USE_DPC || sender!=llGetLinkNumber() || number!=7210 || llStringLength(text)>1000 || llJsonValueType(text,[])!=JSON_OBJECT)return;
+    if(llJsonGetValue(text,["v"])!="2" || llJsonGetValue(text,["op"])!="APPLIANCE")return;
+    // Settle old supply before accepting the new observation. Offline time does
+    // not receive retroactive free grid power from a newly received heartbeat.
+    if(!advance())return;
+    dpcOn=llJsonGetValue(text,["on"])=="1" && llJsonGetValue(text,["powered"])=="1" && llJsonGetValue(text,["enabled"])=="1";
+    dpcSeen=llGetUnixTime();
+}
+reportDemand(integer watts)
+{
+    if(!USE_DPC || fault || llGetUnixTime()-dpcDemandAt<15)return;
+    if(iv(4))watts=0;
+    dpcDemandAt=llGetUnixTime();
+    llMessageLinked(LINK_THIS,7212,llList2Json(JSON_OBJECT,["op","DEMAND","watts",watts]),NULL_KEY);
+}

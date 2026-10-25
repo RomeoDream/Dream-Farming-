@@ -1,62 +1,63 @@
-# In-world setup
+# In-world setup — expansion alpha
 
-## Separate test objects
+Rez test objects on land where you may build, run scripts and enable physics. Paste complete files from `lsl/` into Mono scripts. Put each controller in the root, with one farming controller per linkset. Driver/visual scripts and documented external adapters are companions.
 
-Rez test prims on land where you may build and run scripts. Give them the same owner and keep transfer endpoints within 8 metres. Use fresh test objects for this alpha.
+## Object layout
 
-| Object | Script in root | Optional setup |
+| Object | Root scripts | Configuration |
 | --- | --- | --- |
-| Field | `lsl/DreamFarm_Field.lsl` | Add `DreamFarm_Visuals.lsl`; name crop-stage children `DF:Stage:0` through `DF:Stage:5` |
-| Livestock pen | `lsl/DreamFarm_Livestock.lsl` | Set `SPECIES` before first use: `Cattle`, `Chicken`, `Sheep` or `Pig` |
-| Compost pile | `lsl/DreamFarm_Compost.lsl` | One active batch per pile |
-| Garden applicator | `lsl/DreamFarm_Garden_Applicator.lsl` | Keep near the Garden plant and owner during application |
-| Garden plant | Existing `DreamGarden_Botany.lsl` | Do not add a farming controller to this linkset |
+| Field | `DreamFarm_Field`; optional `DreamFarm_Visuals` | Default 20×20 m working rectangle centered on root, local X/Y axes |
+| Tractor | `DreamFarm_Machine` + `DreamFarm_TractorDriver` | Same root; root +X forward; owner sits on root |
+| Storage shed or parked trailer | `DreamFarm_Storage` | One stock ledger; do not add Machine to this linkset |
+| Processing building | `DreamFarm_Processor` | Select a recipe; one batch at a time |
+| Individual-animal pen | `DreamFarm_Herd` | Manage adds sandbox adults; maximum eight records |
+| Original cohort pen | `DreamFarm_Livestock` | Optional simpler pen; set species before first boot |
+| Compost pile | `DreamFarm_Compost` | One active/curing batch |
+| Water pump/tank | `DreamFarm_Irrigation` | Destination field UUID; enable field irrigation separately |
+| Farm monitor | `DreamFarm_Board` | Up to 16 same-owner roots within 96 m |
+| Farm office | `DreamFarm_Office` | Up to 16 retained work orders; optional banking |
+| Current Garden collection point | `DreamFarm_Garden_Link` + upstream `DreamGarden_FarmManure` | Same root; Garden `ANIMALS=0`; automatic bridge |
+| Legacy Garden v0.3 applicator | `DreamFarm_Garden_Applicator` | Only the pinned older Botany interface; see manure guide |
 
-Paste each complete `lsl/` file into a **Mono** LSL script and compile. Never combine multiple farming controllers in one linkset. The visual script belongs beside the field controller in the root, not a child. Simple prims work without meshes.
+Touch controllers within 8 m. With `GROUP_WORK=TRUE`, members wearing the object's non-null group may perform selected care and work-order actions; the owner retains transfers, configuration and sandbox restocks. This is coarse group access, not a full employment system.
 
-Ordinary script reset preserves saved state. Changing a pen's species after initialization locks the existing record. Use a fresh pen for a different species. Owner transfers lock state rather than silently reassigning stock. Do not erase data to repair a pending delivery.
+## First connected farm
 
-## Field controls
+1. Put a Field, Herd, Compost, Processor and Storage within transfer range. Register their root UUIDs at a Board.
+2. Field: **Plow → Plant → Wheat**. Manage **Soil care** and **Utilities**. **Settings → Demo x60** accelerates both growth and damage.
+3. Herd: **Manage → Cow**, **Manage → Bull**, then **Manage → Sandbox supplies**. Select the cow under **Animals**. Naming, breeding and treatment affect the selected record.
+4. Set herd **Settings → Destination** to the compost root UUID. **Export → Select material → Manure → Send 10** moves finite stock. Material selectors use **Next** for later pages.
+5. Compost: start a recipe, manage moisture/oxygen, finish active processing and curing, then send mature compost to the field. **Soil care → Compost** consumes it.
+6. Field: harvest when ripe. **Export harvest → Wheat** sends ten wet-wheat units to the destination Processor. Select **Wheat dryer**, supply energy/diesel, and **Run batch**.
+7. Export dry wheat to storage or mill it into flour. Several processors form a production line; one can switch recipes after completing a batch.
 
-Stand within 8 m, touch the field, choose **Plow → Plant → crop**. Equipment consumes diesel and gains wear. **Soil care** offers water, fertilizer, delivered mature compost, lime, weeding and pest treatment. Dryness, waterlogging, frost, excessive fertility and neglect can damage crops.
+Initial stock and sandbox deliveries are game supplies. They do not represent a purchase, payment or verified commodity provenance.
 
-**Utilities** offers greenhouse shelter, automatic irrigation, powered climate conditioning, equipment service, explicit sandbox restocks and storage. These are simulation controls; no building is rezzed and no external utility is connected.
+## Tractor build and use
 
-At stage 4 choose **Harvest**. Crop removal, produce, seeds and residue save together. Stages: 0 bare, 1 seed, 2 sprout, 3 growing, 4 mature, 5 dead. **Clear crop** requires confirmation. **Storage** reports quantities; choosing a crop consumes 1 kg for roleplay. It does not sell or deliver inventory objects.
+Start with a simple low-complexity physical linkset and stable collision hull. Decorative meshes, wheels and implements are separate asset work. The driver sets a root sit target at local `<0,0,0.6>` and basic CAR physics parameters.
 
-Visual meshes must be built separately. Only children named exactly `DF:Stage:0` ... `DF:Stage:5` change alpha. Other children remain untouched. The alpha uses the same stage meshes for all crops.
+1. Place both tractor scripts in the same root. Owner sits, grants controls and drives with arrow/WASD controls. Forward target is 4 m/s, reverse 2 m/s; actual movement depends on terrain and simulator load.
+2. Set Machine **Settings → Destination** to the field root UUID.
+3. Select **Implement**, optionally **Crop**, lower it with **Lower or raise**, and turn **Engine** on.
+4. Drive over each 2.5×2.5 m cell. Coverage uses actual object position/velocity, accepts 0.2–4 m/s and a vertical difference up to 4 m. Drive slowly with overlap.
+5. At 64/64 the field performs the operation once and the implement raises. Sowing also needs a tilled empty field, field seed stock and an allowed season. Harvesting needs ripe crops and storage room.
+6. **Utilities → Field setup → Reset coverage** abandons unfinished coverage without producing anything or refunding fuel. Then start a new machine job.
 
-## Livestock controls
+Coverage survives reset. Machine reset stops the requested engine, requiring manual restart. Driver leases expire after two seconds without confirmation. Unseating and region changes stop the driver. Towing, animated implements, hitches, load-dependent vehicle mass and collision feedback are not implemented.
 
-A pen represents an adult female/cohort with finite feed, water and bedding. **Feed 100**, **Water 200** and **Bedding 20** record roleplay deliveries without money charges. **Muck out** collects manure and consumes 2 kg bedding, storing the resulting used bedding separately.
+## Time and resources
 
-**Breed** starts roleplay breeding service if health and stress permit it. Offspring are counts, not rezzed/growing animal objects. Milk requires a lactation window; chickens produce eggs, sheep wool and pigs offspring only. **Collect produce** removes whole produce units for roleplay. Milk and eggs spoil in the pen. Dead animals cannot be revived by Treat.
+- Normal: one real hour = one farm day. Demo x60: one real minute = one farm day.
+- Normal slices are 150 seconds; demo slices five seconds. Controllers process at most eight slices per event, normally on a 15-second timer.
+- At most 24 real hours of offline time is simulated; excess is recorded as frozen time. Each field starts its own 120-day seasonal year.
+- Driver fuel leases and pump throughput use real seconds, independent of crop speed. Pump and processing resource values are roleplay budgets.
+- Pause freezes simulation progression; previously reserved transfers can finish. Pending stock is never automatically refunded.
 
-## Material destinations
+## Persistence and upgrades
 
-Copy the destination **root object's UUID** with your viewer's object inspection/UUID command. On the source choose **Settings → Destination** and paste it. A name or inventory asset UUID will not work.
+Reset preserves Linkset Data. Field v0.1 migrates to schema 2, moving the existing outbox and receipts without changing identities. Migration is saved atomically before operation. Other existing module schemas remain unchanged. Install new modules in fresh linksets.
 
-| Source | Destination | Command |
-| --- | --- | --- |
-| Pen | Compost pile | Send manure (10 kg), Send bedding (2 kg) |
-| Field | Compost pile | Soil care → Send residue (10 kg) |
-| Compost pile | Field or Garden applicator | Send compost (2 kg) |
-| Garden applicator | Garden Botany plant | Apply compost (2 kg) |
+Keep delivery endpoints within 8 m, rezzed and running until confirmed. Do not clear receipts, copy live economic objects or relink pending roots as a repair. Each receiver retains eight sender streams; arrange depots/additional receivers before reaching that limit. Deleted destinations and owner changes require audited recovery.
 
-The source debits and saves a load before sending. Keep both ends rezzed and running until confirmed. Lost replies cause the same saved load to retry. A new load cannot start while one is pending. Receivers keep up to **8 sender streams**, never evicting receipt history. Use additional piles rather than clearing receipts or copying objects containing live stock.
-
-## Time
-
-- Normal: one real hour = one farm day. Each new field starts its own 120-day temperate year in spring; fields are not globally synchronized.
-- Demo x60: one real minute = one farm day. Damage is accelerated too.
-- Simulation slices: 150 real seconds normally, 5 seconds in demo. Each timer event processes at most eight slices.
-- The normal timer is 15 seconds. The applicator temporarily uses two seconds during Garden delivery.
-- Offline catch-up retains at most 24 real hours. Excess time freezes and is recorded at state index 7. Remaining work catches up over later events; controls wait until caught up.
-- Pause settles existing complete slices; paused time is not simulated on resume.
-- A speed change settles complete slices at the old rate and resets the small partial remainder. Settings are owner sandbox controls, not an anti-cheat boundary.
-
-## Recovery
-
-A failed save locks actions and retains the previous durable record. Repair exhausted Linkset Data space, then reset. Invalid records are preserved. If a destination is deleted or its root UUID changes during a pending transfer, there is no automatic refund: restore the receiver if possible or use an audited recovery/migration later.
-
-Do not relink active controller roots with pending transfers. Copying objects copies their stock and stream identities; this local alpha is cooperative roleplay, not a tamper-proof economy.
+Run [IN_WORLD_TESTS.md](IN_WORLD_TESTS.md) before calling an installation production-ready. Every script needs Mono compilation, actual memory measurements and simulator checks.

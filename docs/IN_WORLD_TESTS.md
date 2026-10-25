@@ -1,34 +1,46 @@
 # In-world acceptance checklist — not yet executed
 
-Record viewer/server version, Mono compile result, free memory, elapsed times and screenshots. Run on test objects before using valuable farm content. A passing local Python/Lummao suite is not a substitute for this checklist.
+Record Second Life viewer/server version, Mono compile result, free memory, script time, elapsed times and screenshots on test objects. Lummao tests execute the source but do not measure simulator physics, memory, rendering, throttles or real service availability.
 
 | Test | Expected result | Result |
 | --- | --- | --- |
-| Compile all five scripts as Mono | No compiler errors; controllers show initial state | Pending |
-| Settings → Diagnostics in each controller | Record actual free memory; leave comfortable headroom throughout later tests | Pending |
-| Every menu/textbox on desktop and tablet viewer | Labels readable, buttons available, UUID entry works | Pending |
-| Stranger touch and spoofed dialog reply | No state change | Pending |
-| Walk beyond 8 m after opening dialog | Old reply ignored | Pending |
-| Plow then plant each crop | Tillage required; seed/diesel debit once; stage 1 | Pending |
-| Maintained growth in normal and demo | Progress, resource use and stage changes; no stack/heap errors | Pending |
-| Drought, flood, frost, bad pH, weeds | Slower growth and appropriate damage; dead crop cannot harvest | Pending |
-| Greenhouse power and water exhaustion | Conditioning/irrigation stops using exhausted supplies; never negative | Pending |
-| Harvest, repeat click, reset | Exactly one credit; stock and empty field survive reset | Pending |
-| Storage use and spoilage | Correct local debit and time-based spoilage | Pending |
-| Pen feed/water/manure over one farm day | Supplies fall, manure rises, no negative balances | Pending |
-| Muck out and export manure/bedding | Cleanliness rises; stock reserved once and credited once at compost | Pending |
-| Stop receiver script before delivery | Sender retains pending load; enabling receiver eventually confirms once | Pending |
-| Stop sender after receipt but before ACK | After reset, retransmission is deduplicated | Pending |
-| Move receiver outside 8 m while pending | No unauthorized credit; delivery resumes when returned | Pending |
-| Full/corrupt Linkset Data on disposable copy | No successful-action claim, no destructive overwrite | Pending |
-| Managed compost through active and cure stages | Fresh stock consumed; mature yield appears once, only after cure | Pending |
-| Immature pile Send compost | No transfer or garden credit | Pending |
-| Compost → field | 2 kg credited; Soil care → Compost consumes and improves soil | Pending |
-| Compost → Garden applicator → Botany | Fertility rises once; one 2 kg dose consumed; ACK clears hold | Pending |
-| Garden rejects/timeout | No auto-refund; explicit discard resolves hold without restoring stock | Pending |
-| Take/re-rez normal saved object with no pending loads | State survives; capped catch-up is understandable | Pending |
-| Owner transfer/species change | Existing record preserved and locked | Pending |
-| Optional field visuals | Only named stage children change; other build parts untouched | Pending |
-| 20–50 objects under normal simulator load | Record script time, event delay, memory and dropped deliveries | Pending |
+| Compile all fourteen generated scripts as Mono | No errors; valid default state | Pending |
+| Diagnostics at maximum herd, stock, ledger and receipt occupancy | Record actual free memory; no stack/heap collisions during updates | Pending |
+| Every menu, material page and Unicode textbox | Buttons fit, text fits viewer byte limits, correct actor and channel | Pending |
+| Stranger/group/assigned-worker access | Only configured care/job actions; no unauthorized restock, transfer or invoice | Pending |
+| Open dialog, then leave 8 m range | Reply ignored | Pending |
+| Field v0.1 upgrade with pending transfer | Stock, outbox ID and receipts survive migration; delivery completes once | Pending |
+| All six crops, soil types and seasonal gates | Resource-dependent growth/harvest; winter restrictions where enabled | Pending |
+| Drought, flood, frost, poor pH, pests and neglect | Slower growth/damage; dead crop never harvests | Pending |
+| Harvest twice, reset, export | One harvest credit; finite exported stock | Pending |
+| Tractor seat/control/engine | Owner permissions; no movement before valid fuel lease | Pending |
+| Out of fuel, permission loss, driver stop, unseat, reset and region change | Motion stops; reset requires manual engine restart | Pending |
+| Physical slopes, collisions and simulator lag | Stable hull; speed/range gates understandable; no runaway motor | Pending |
+| Plow/sow/weed/harvest all 64 cells | Actual movement counts each cell once; final operation occurs once | Pending |
+| Leave field, drive too fast, stop or switch unfinished job | Invalid work rejected; explicit coverage reset available | Pending |
+| Field seed empty, season closed or harvest storage full at final cell | Final operation and final cell remain unapplied | Pending |
+| Individual herd feed/water and waste | Finite shared supplies, milk/eggs/wool/manure quantities, no negative stock | Pending |
+| Mate/birth/reset/grow young | One litter, parent identities retained, young mature, full pens hold births | Pending |
+| Related/immature/stressed breeding and dead-animal treatment | Rejected; no resurrection or duplicate births | Pending |
+| Muck out → manure/bedding → compost | One source debit/receiver credit; fresh waste is not mature fertilizer | Pending |
+| All three compost recipes through active/cure phases | Correct ingredients/yields; management required; one completion | Pending |
+| Each processor recipe through reset and resource outage | Inputs consumed once; output reserved; progress stalls without utilities | Pending |
+| Slurry → digestate/biogas → local energy | Both outputs appear once; generator consumes actual biogas | Pending |
+| Full storage/batch reservations and refrigeration outage | Capacity respected; spoilage changes when power is unavailable | Pending |
+| Pump/valve/head/leak/repair | Delivery consumes finite water/power; spill recorded; repairs use parts | Pending |
+| Stop receiver / drop ACK / move beyond 8 m | One persistent load; retry credits once after recovery, no timeout refund | Pending |
+| Fill eight receipt streams | Ninth is held; prior receipt records are never evicted | Pending |
+| Fail writes / corrupt disposable state | Original record preserved, no successful action or motion authorization | Pending |
+| Current Garden bridge with ANIMALS=0 | Farm manure arrives once in native collection point; native compost/fertilizer workflow works | Pending |
+| Current Garden bridge lost linked ACK and reset | Same saved sequence retries; no extra manure | Pending |
+| Legacy Garden v0.3 applicator only | One mature dose; unknown outcome holds; explicit discard gives no refund | Pending |
+| Board register/poll/stale/foreign source | Only registered owner nodes update; stale reading visible after 60 s | Pending |
+| Office assignment and completion | Authorized manual status changes; retained jobs and no duplicate completion count | Pending |
+| Bank adapter approval, real invoice, partial/full payment, reset | Same immutable bill; only matching full PAID counted once | Pending |
+| TXAGO real HTTP/engine refusal/outage | No fuel bypass or local fallback; STOP/stale status halts motion | Pending |
+| DPC real panel/cord/appliance/outage/restore | Correct demands; no local energy fallback or retroactive offline power | Pending |
+| Re-rez / owner change / species/config change | Supported resets retain state; incompatible bindings lock for reconciliation | Pending |
+| Optional field stage meshes | Only named DF:Stage:0..5 children change; other build parts untouched | Pending |
+| 20–50 connected objects | Record memory, event delays, script time and throughput; tune limits from evidence | Pending |
 
-Do not certify cross-region operation, transferable goods, anti-copy integrity, server persistence, real payments or drivable machinery from these tests; those features are outside 0.1.0.
+Public cross-owner sales, secure transferable stock, authoritative servers, towing/hitch physics and finished art are outside this release. These tests do not certify those capabilities.

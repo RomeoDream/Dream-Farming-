@@ -1,0 +1,32 @@
+// Shared unit catalog. ENERGY=kWh, WATER/MILK/DIESEL/SLURRY=L, EGGS=count;
+// all other materials use roleplay kg. Capacity is normalized storage units.
+list MATERIALS=["WHEAT","CORN","SOYBEAN","POTATO","SUNFLOWER","GRASS","BROWNS","MANURE","COMPOST","FEED","WATER","DIESEL","ENERGY","BEDDING","MILK","EGGS","WOOL","FLOUR","CHEESE","HAY","SILAGE","WET_WHEAT","WET_CORN","SEED","FERTILIZER","PARTS","SLURRY","BIOGAS","PACKED_PRODUCE","DIGESTATE","MEDICINE"];
+list LABELS=["Wheat","Corn","Soybean","Potato","Sunflower","Grass","Browns","Manure","Compost","Feed","Water","Diesel","Energy","Bedding","Milk","Eggs","Wool","Flour","Cheese","Hay","Silage","Wet wheat","Wet corn","Seed","Fertilizer","Parts","Slurry","Biogas","Packed produce","Digestate","Medicine"];
+string emptyBag()
+{list a=[];integer i;for(i=0;i<llGetListLength(MATERIALS);++i)a+=[0.0];return llList2Json(JSON_ARRAY,a);}
+integer validBag(string bag)
+{
+    list a=llJson2List(bag);integer n=llGetListLength(MATERIALS);
+    if(llJsonValueType(bag,[])!=JSON_ARRAY || llGetListLength(a)!=n)return FALSE;
+    integer i;for(i=0;i<n;++i)if(!numeric(a,i,0.0,1000000.0))return FALSE;
+    return TRUE;
+}
+float stock(string material)
+{integer i=llListFindList(MATERIALS,[material]);if(i<0)return 0.0;return (float)llJsonGetValue(sv(8),[i]);}
+alter(string material,float amount)
+{integer i=llListFindList(MATERIALS,[material]);list b=llJson2List(sv(8));b=llListReplaceList(b,[stock(material)+amount],i,i);put(8,[llList2Json(JSON_ARRAY,b)]);}
+float totalStock()
+{list bag=llJson2List(sv(8));float n=0.0;integer i;for(i=0;i<llGetListLength(bag);++i)n+=llList2Float(bag,i);return n;}
+list materialButtons(integer p)
+{integer first=p*8;return llList2List(LABELS,first,first+7)+["Next","Back","Close"];}
+float decay(string material)
+{
+    if(material=="MILK")return 0.12;
+    if(material=="GRASS")return 0.08;
+    if(material=="EGGS" || material=="POTATO" || material=="WET_WHEAT" || material=="WET_CORN")return 0.02;
+    if(material=="CHEESE" || material=="PACKED_PRODUCE")return 0.01;
+    if(llListFindList(["WHEAT","CORN","SOYBEAN","SUNFLOWER","FEED","FLOUR","HAY","SILAGE"],[material])>=0)return 0.001;
+    return 0.0;
+}
+string bagReport()
+{string result="";integer i;for(i=0;i<llGetListLength(MATERIALS);++i){float q=stock(llList2String(MATERIALS,i));if(q>0.01)result+=llList2String(LABELS,i)+" "+(string)q+"; ";}return result;}

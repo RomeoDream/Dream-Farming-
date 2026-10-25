@@ -1,0 +1,72 @@
+// 8 x 8 work map across a configurable rectangular field. Cell footprints use
+// the actual source object's position and velocity, not coordinates it claims.
+integer WORK_NET=-163847026;
+float FIELD_WIDTH=20.0;
+float FIELD_DEPTH=20.0;
+integer remoteWork;
+integer workValid(string raw)
+{
+    if(raw=="")return TRUE;list w=llJson2List(raw);
+    if(llGetListLength(w)!=8 || !uuid(llList2String(w,0)) || !uuid(llList2String(w,1)))return FALSE;
+    if(llListFindList(["Plow","Sow","Harvest","Weed"],[llList2String(w,2)])<0)return FALSE;
+    return whole(w,3,0,5) && whole(w,4,-2147483647-1,2147483647) && whole(w,5,-2147483647-1,2147483647) && whole(w,6,0,1) && whole(w,7,0,64);
+}
+workReply(key source,string job,integer coverage,integer done)
+{llRegionSayTo(source,WORK_NET,llList2Json(JSON_OBJECT,["v",1,"op","WORK_STATUS","job",job,"coverage",coverage,"done",done]));}
+fieldWork(key source,string msg)
+{
+    if(fault || iv(4) || llStringLength(msg)>1000 || llJsonValueType(msg,[])!=JSON_OBJECT)return;
+    if(llJsonGetValue(msg,["v"])!="1" || llJsonGetValue(msg,["op"])!="WORK" || llJsonGetValue(msg,["target"])!=(string)llGetKey())return;
+    if(llGetOwnerKey(source)!=llGetOwner() || llGetAgentSize(source)!=ZERO_VECTOR || llJsonGetValue(msg,["actor"])!=(string)llGetOwner())return;
+    if(!near(llGetOwner(),40.0) || llGetAgentSize(llGetOwner())==ZERO_VECTOR)return;
+    integer when=(integer)llJsonGetValue(msg,["time"]);integer age=llGetUnixTime()-when;
+    if(llJsonValueType(msg,["time"])!=JSON_NUMBER || age<0 || age>5)return;
+    string job=llJsonGetValue(msg,["job"]);string op=llJsonGetValue(msg,["tool"]);integer crop=(integer)llJsonGetValue(msg,["crop"]);
+    if(!uuid(job) || llJsonValueType(msg,["crop"])!=JSON_NUMBER || (string)crop!=llJsonGetValue(msg,["crop"]) || crop<0 || crop>5 || llListFindList(["Plow","Sow","Harvest","Weed"],[op])<0)return;
+    list details=llGetObjectDetails(source,[OBJECT_POS,OBJECT_VELOCITY]);if(llGetListLength(details)!=2)return;
+    vector local=(llList2Vector(details,0)-llGetPos())/llGetRot();
+    float speed=llVecMag(llList2Vector(details,1));
+    if(speed<0.2 || speed>4.0 || llFabs(local.z)>4.0 || llFabs(local.x)>FIELD_WIDTH*0.5 || llFabs(local.y)>FIELD_DEPTH*0.5)return;
+    if(!advance())return;
+    list w=llJson2List(sv(43));
+    if(llGetListLength(w)>0)
+    {
+        if(llList2String(w,1)==job)
+        {
+            if(llList2Key(w,0)!=source || llList2String(w,2)!=op || llList2Integer(w,3)!=crop)return;
+            if(llList2Integer(w,6)){workReply(source,job,64,1);return;}
+        }
+        else if(!llList2Integer(w,6))return; // Owner can explicitly reset abandoned coverage.
+        else w=[];
+    }
+    if(op=="Plow" && iv(8)!=0)return;
+    if(op=="Sow" && (iv(8)!=0 || !iv(9) || iv(24)<1))return;
+    if(op=="Harvest" && stage()!=4)return;
+    if(op=="Weed" && fv(19)<=0.0)return;
+    if(llGetListLength(w)==0)w=[(string)source,job,op,crop,0,0,0,0];
+    integer x=(integer)((local.x+FIELD_WIDTH*0.5)/(FIELD_WIDTH/8.0));
+    integer y=(integer)((local.y+FIELD_DEPTH*0.5)/(FIELD_DEPTH/8.0));
+    if(x>7)x=7;if(y>7)y=7;integer cell=y*8+x;
+    integer slot=4;if(cell>=32){slot=5;cell-=32;}
+    integer mask=llList2Integer(w,slot);integer bit=1<<cell;
+    if(mask & bit){workReply(source,job,llList2Integer(w,7),0);return;}
+    list before=S;
+    w=llListReplaceList(w,[mask|bit],slot,slot);integer coverage=llList2Integer(w,7)+1;
+    w=llListReplaceList(w,[coverage],7,7);
+    if(coverage==64)
+    {
+        if(iv(48)>=1000000)return;
+        string oldPage=page;remoteWork=TRUE;string result;
+        if(op=="Sow"){page="plant";result=action(llList2String(CROPS,crop));}
+        else result=action(op);
+        remoteWork=FALSE;page=oldPage;
+        // Validate final state, including season and capacity failures in action().
+        integer done=FALSE;
+        if(op=="Plow")done=iv(9)==1;if(op=="Sow")done=iv(8)==crop+1;
+        if(op=="Harvest")done=iv(8)==0;if(op=="Weed")done=fv(19)==0.0;
+        if(!done){S=before;llOwnerSay(result);return;}
+        w=llListReplaceList(w,[1],6,6);put(48,[iv(48)+1]);
+    }
+    put(43,[llList2Json(JSON_ARRAY,w)]);
+    if(save(before))workReply(source,job,coverage,llList2Integer(w,6));
+}

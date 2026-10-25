@@ -1,7 +1,7 @@
 string DATA="dreamfarm:field:v1";
 string KIND="FIELD";
-integer OUT=43;
-integer BASE=48;
+integer OUT=50;
+integer BASE=55;
 list CROPS=["Wheat","Corn","Soybean","Potato","Sunflower","Grass"];
 list GDD=[300.0,450.0,350.0,280.0,320.0,100.0];
 list BASE_TEMP=[0.0,10.0,8.0,5.0,6.0,2.0];
@@ -12,9 +12,11 @@ list YIELD=[30.0,45.0,25.0,60.0,20.0,40.0];
 // 22 ripe days;23 prior crop;24 seed units;25 water tank L;26 fertilizer kg;
 // 27 mature compost kg;28 diesel L;29 equipment wear;30 greenhouse;
 // 31 auto irrigation;32 energy kWh;33 climate power;34..39 local crop kg;
-// 40 crop residue kg;41 harvest count;42 spoilage kg;43..47 outbox.
+// 40 crop residue kg;41 harvest count;42 spoilage kg;43 coverage JSON;
+// 44 soil type;45 seed vigor%;46 sowing-window rules;47 reserved moisture;
+// 48 completed machine jobs;49 reserved;50..54 outbox. Schema 1 migrates atomically.
 fresh()
-{S=header()+[0,0,0.0,100.0,60.0,65.0,65.0,65.0,6.5,4.0,25.0,0.0,0.0,0.0,0.0,0,12,1000.0,20.0,0.0,50.0,0.0,0,0,100.0,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0.0]+outbox();}
+{S=header()+[0,0,0.0,100.0,60.0,65.0,65.0,65.0,6.5,4.0,25.0,0.0,0.0,0.0,0.0,0,12,1000.0,20.0,0.0,50.0,0.0,0,0,100.0,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0.0]+["",0,100.0,0,20.0,0,0]+outbox();}
 integer validSpecific(list v)
 {
     integer i;for(i=8;i<43;++i)if(!numeric(v,i,0.0,1000000.0))return FALSE;
@@ -22,7 +24,7 @@ integer validSpecific(list v)
     for(i=11;i<=21;++i)if(!numeric(v,i,0.0,100.0))return FALSE;
     if(!numeric(v,16,0.0,14.0) || !numeric(v,17,0.0,20.0) || !numeric(v,29,0.0,100.0))return FALSE;
     for(i=30;i<=31;++i)if(!whole(v,i,0,1))return FALSE;
-    return whole(v,33,0,1) && whole(v,41,0,1000000);
+    return whole(v,33,0,1) && whole(v,41,0,1000000) && workValid(llList2String(v,43)) && whole(v,44,0,2) && numeric(v,45,0.0,100.0) && whole(v,46,0,1) && numeric(v,47,0.0,100.0) && whole(v,48,0,1000000) && whole(v,49,0,0);
 }
 // Identical farm-day zero across independently installed fields is optional:
 // a fresh object begins its own 120-day temperate year in spring.
@@ -43,10 +45,11 @@ tick(float dt)
     if(iv(30))
     {
         rainfall=0.0;temp+=5.0;light*=0.75;
-        if(iv(33) && fv(32)>=2.0*dt){put(32,[fv(32)-2.0*dt]);temp=22.0;light=0.9;}
+        if(iv(33) && ((!USE_DPC && fv(32)>=2.0*dt) || gridLive())){if(!USE_DPC)put(32,[fv(32)-2.0*dt]);temp=22.0;light=0.9;}
     }
     // Water balance, drainage and nutrient leaching continue on bare fields.
-    float w=fv(12)+rainfall*dt-clamp(2.0+temp*0.12,0.5,8.0)*dt;
+    float retention=llList2Float([1.0,0.7,1.5],iv(44));
+    float w=fv(12)+rainfall*dt-retention*clamp(2.0+temp*0.12,0.5,8.0)*dt;
     if(w>85.0){put(13,[clamp(fv(13)-(w-85.0)*dt*0.05,0.0,100.0)]);w-=dt*(w-85.0)*0.4;}
     put(12,[clamp(w,0.0,100.0)]);
     if(iv(31) && fv(12)<50.0)
@@ -60,7 +63,7 @@ tick(float dt)
         float moisture=clamp((fv(12)-8.0)/35.0,0.0,1.0)*clamp((100.0-fv(12))/15.0,0.0,1.0);
         float nutrient=clamp(low(fv(13),low(fv(14),fv(15)))/35.0,0.0,1.0);
         float ph=clamp(1.0-llFabs(fv(16)-6.5)/2.0,0.0,1.0);
-        float efficiency=moisture*nutrient*ph*light*(1.0-fv(18)*0.006)*(1.0-fv(19)*0.008);
+        float efficiency=moisture*nutrient*ph*light*(fv(45)/100.0)*(1.0-fv(18)*0.006)*(1.0-fv(19)*0.008);
         put(20,[clamp(fv(20)+dt*(temp/20.0-0.4),0.0,100.0)]);
         put(21,[clamp(fv(21)+dt*(fv(12)/40.0-1.0+fv(20)/100.0),0.0,100.0)]);
         efficiency*=clamp(1.0-(fv(20)+fv(21))/160.0,0.0,1.0);
@@ -90,6 +93,8 @@ tick(float dt)
         put(i,[clamp(fv(i)-spoiled,0.0,1000000.0)]);put(42,[clamp(fv(42)+spoiled,0.0,1000000.0)]);
     }
 }
+// @include power.lslinc
+// @include field_work.lslinc
 string summary()
 {
     string c="Empty";if(iv(8)>0)c=llList2String(CROPS,iv(8)-1);
@@ -103,19 +108,34 @@ list buttons(string p)
     if(p=="clear")return ["Confirm clear","Back","Close"];
     if(p=="settings")return ["Pause","Resume","Normal","Demo x60","Destination","Back","Close"];
     if(p=="plant")return CROPS+["Back","Close"];
+    if(p=="export")return CROPS+["Back","Close"];
     if(p=="storage")return CROPS+["Back","Close"];
     if(p=="soil")return ["Water","Fertilize","Compost","Lime","Weed","Treat pests","Clear crop","Send residue","Back","Close"];
-    if(p=="utility")return ["Greenhouse","Auto water","Climate power","Refill supplies","Service","Storage","Back","Close"];
-    return ["Plow","Plant","Harvest","Soil care","Utilities","Settings","Close"];
+    if(p=="soiltype")return ["Loam","Clay","Sand","Season rules","Soil test","Reset coverage","Back","Close"];
+    if(p=="utility")return ["Greenhouse","Auto water","Climate power","Refill supplies","Service","Storage","Field setup","Back","Close"];
+    return ["Plow","Plant","Harvest","Soil care","Utilities","Export harvest","Settings","Close"];
 }
 integer machine(float liters)
-{if(fv(28)<liters || fv(29)>95.0)return FALSE;put(28,[fv(28)-liters]);put(29,[clamp(fv(29)+2.0,0.0,100.0)]);return TRUE;}
+{if(remoteWork)return TRUE;if(fv(28)<liters || fv(29)>95.0)return FALSE;put(28,[fv(28)-liters]);put(29,[clamp(fv(29)+2.0,0.0,100.0)]);return TRUE;}
 string action(string cmd)
 {
+    if(cmd=="Field setup"){page="soiltype";return "";}
+    if(cmd=="Season rules"){put(46,[!iv(46)]);return "Sowing window enforcement toggled.";}
+    if(cmd=="Reset coverage"){put(43,[""]);return "Coverage cleared; crop and supplies preserved.";}
+    if(cmd=="Soil test")return summary()+" | Organic matter "+(string)fv(17)+" | Compaction "+(string)fv(18)+" | Seed quality "+(string)fv(45);
+    integer soil=llListFindList(["Loam","Clay","Sand"],[cmd]);if(page=="soiltype" && soil>=0){put(44,[soil]);return "Soil profile selected.";}
     if(cmd=="Plant"){page="plant";return "";}
     if(cmd=="Soil care"){page="soil";return "";}
     if(cmd=="Utilities"){page="utility";return "";}
+    if(cmd=="Export harvest"){page="export";return "Choose a crop to send 10 units. Grain exports as wet grain for drying.";}
     integer crop=llListFindList(CROPS,[cmd]);
+    if(page=="export" && crop>=0)
+    {
+        if(fv(34+crop)<10.0)return "Need 10 units of harvested crop.";
+        string k=llList2String(["WET_WHEAT","WET_CORN","SOYBEAN","POTATO","SUNFLOWER","GRASS"],crop);
+        if(!startTransfer(k,10))return "Set nearby destination or finish pending load.";
+        put(34+crop,[fv(34+crop)-10.0]);return "Harvest reserved for storage or processing.";
+    }
     if(page=="storage" && crop>=0)
     {
         if(fv(34+crop)<1.0)return "None of that crop remains in storage.";
@@ -124,6 +144,8 @@ string action(string cmd)
     if(page=="plant" && crop>=0)
     {
         if(iv(8)>0 || !iv(9) || iv(24)<1)return "Need an empty tilled field and one seed unit.";
+        integer season=((integer)(fv(6)/30.0))%4;
+        if(iv(46) && !iv(30) && (season==3 || (season==2 && crop!=0 && crop!=5)))return "Outside this crop sowing window. Use greenhouse or wait for season.";
         if(!machine(0.5))return "Need diesel or equipment service.";
         put(8,[crop+1]);put(24,[iv(24)-1]);put(10,[0.0]);put(11,[100.0]);put(22,[0.0]);
         // Repeat cropping carries extra soil disease; rotation avoids the penalty.
@@ -173,9 +195,24 @@ string action(string cmd)
     return "";
 }
 integer credit(string kind,integer qty)
-{if(kind!="COMPOST" || fv(27)+(float)qty>1000000.0)return FALSE;put(27,[fv(27)+(float)qty]);return TRUE;}
+{
+    integer idx=llListFindList(["SEED","WATER","FERTILIZER","COMPOST","DIESEL"],[kind]);
+    if(idx>=0)idx+=24;else if(kind=="ENERGY")idx=32;else return FALSE;
+    if(fv(idx)+qty>1000000.0)return FALSE;
+    if(idx==24)put(idx,[iv(idx)+qty]);else put(idx,[fv(idx)+qty]);return TRUE;
+}
 string visual(){return llList2Json(JSON_OBJECT,["kind",KIND,"stage",stage(),"crop",iv(8),"fault",fault]);}
-extraBoot(){}
-integer extraListen(integer c,key who,string msg){return FALSE;}
-service(){sendTransfer();}
+extraBoot(){llListen(WORK_NET,"",NULL_KEY,"");}
+integer extraListen(integer c,key who,string msg){if(c==WORK_NET){fieldWork(who,msg);return TRUE;}return FALSE;}
+service(){sendTransfer();integer watts=0;if(iv(30) && iv(33))watts=2000;reportDemand(watts);}
+integer SCHEMA=2;
+list migrate(list v)
+{
+    if(llList2Integer(v,0)==1 && llGetListLength(v)>=48 && (llGetListLength(v)-48)%4==0)
+    {v=llList2List(v,0,42)+["",0,100.0,0,20.0,0,0]+llList2List(v,43,-1);v=llListReplaceList(v,[2],0,0);}
+    return v;
+}
+integer textPage(string p){return FALSE;}
+string textPrompt(){return "";}
+extraLink(integer sender,integer number,string text,key id){powerLink(sender,number,text);}
 // @include common.lslinc

@@ -71,7 +71,7 @@ string summary()
 list buttons(string p)
 {
     if(p=="settings")return ["Destination","Pause","Resume","Normal","Demo x60","Back","Close"];
-    return ["Feed 100","Water 200","Bedding 20","Muck out","Send manure","Send bedding","Breed","Collect produce","Treat","Settings","Close"];
+    return ["Feed 100","Water 200","Bedding 20","Muck out","Send manure","Send bedding","Breed","Collect produce","Send produce","Treat","Settings","Close"];
 }
 string action(string cmd)
 {
@@ -105,6 +105,14 @@ string action(string cmd)
         if(fv(14)<80.0 || fv(16)>20.0 || fv(20)>=0.0)return "Breeding requires good health, low stress and no active pregnancy/incubation.";
         put(20,[0.0]);return "Roleplay breeding service started. Young are recorded, not rezzed. Chickens use incubation time.";
     }
+    if(cmd=="Send produce")
+    {
+        integer sp=speciesIndex();if(sp==3)return "Pigs produce offspring; no packaged produce.";
+        if(fv(19)<1.0)return "No whole produce unit available.";
+        string k=llList2String(["MILK","EGGS","WOOL"],sp);
+        if(!startTransfer(k,1))return "Set a nearby storage/processor destination.";
+        put(19,[fv(19)-1.0]);return "One produce unit reserved for delivery.";
+    }
     if(cmd=="Collect produce")
     {
         integer qty=(integer)fv(19);put(19,[fv(19)-(float)qty]);return "Collected/consumed "+(string)qty+" local produce units for roleplay. No inventory item delivered.";
@@ -113,12 +121,22 @@ string action(string cmd)
     {if(fv(14)<=0.0)return "Cannot revive a dead animal.";put(14,[clamp(fv(14)+15.0,0.0,100.0)]);return "Roleplay veterinary care applied. Feed, water and clean the pen too.";}
     return "";
 }
-integer credit(string kind,integer qty){return FALSE;}
+integer credit(string kind,integer qty)
+{
+    integer i=-1;if(kind=="FEED" || kind=="HAY" || kind=="SILAGE")i=9;
+    if(kind=="WATER")i=10;if(kind=="BEDDING" || kind=="BROWNS")i=11;
+    if(i<0 || fv(i)+qty>1000000.0)return FALSE;put(i,[fv(i)+qty]);return TRUE;
+}
 string visual(){return llList2Json(JSON_OBJECT,["kind",KIND,"health",fv(14),"manure",fv(17),"fault",fault]);}
 extraBoot(){}
 integer extraListen(integer c,key who,string msg){return FALSE;}
 service(){sendTransfer();}
-// Dream Farming 0.1.0 alpha. Project and creator credit: Romeo Dream.
+integer SCHEMA=1;
+list migrate(list v){return v;}
+integer textPage(string p){return FALSE;}
+string textPrompt(){return "";}
+extraLink(integer sender,integer number,string text,key id){}
+// Dream Farming 0.2.0 alpha. Project and creator credit: Romeo Dream.
 // Cooperative roleplay; local persistent state, no external server or currency.
 integer NET = -163847025;
 integer VIEW = 48100;
@@ -131,6 +149,11 @@ string page = "main";
 list offered;
 integer inputMode;
 integer txLast;
+key visitor;
+integer GROUP_WORK=FALSE; // opt-in active-group farm workers; owner retains settings/stock transfers
+integer DASH=-163847029;
+integer UI_TOUCH=TRUE;
+integer UI_HOVER=TRUE;
 
 integer iv(integer i) { return llList2Integer(S,i); }
 float fv(integer i) { return llList2Float(S,i); }
@@ -139,12 +162,25 @@ put(integer i,list x) { S=llListReplaceList(S,x,i,i); }
 float clamp(float x,float lo,float hi) { if(x<lo)return lo;if(x>hi)return hi;return x; }
 float low(float a,float b) { if(a<b)return a;return b; }
 integer uuid(string v) { return llStringLength(v)==36 && (key)v!=NULL_KEY; }
+string clipBytes(string text,integer budget)
+{
+    while(llStringLength(llStringToBase64(text))>(budget/3)*4)text=llDeleteSubString(text,-1,-1);
+    return text;
+}
 integer near(key who,float reach)
 {
     list d=llGetObjectDetails(who,[OBJECT_POS]);
     if(llGetListLength(d)!=1)return FALSE;
     return llVecDist(llList2Vector(d,0),llGetPos())<=reach;
 }
+integer permitted(key who)
+{
+    if(llGetAgentSize(who)==ZERO_VECTOR || !near(who,8.0))return FALSE;
+    if(who==llGetOwner())return TRUE;
+    return GROUP_WORK && llList2Key(llGetObjectDetails(llGetKey(),[OBJECT_GROUP]),0)!=NULL_KEY && llSameGroup(who);
+}
+integer workerCommand(string cmd)
+{return llListFindList(["Plow","Plant","Harvest","Soil care","Water","Weed","Treat pests","Muck out","Collect produce","Turn pile","Water pile","Dry pile","Start batch","Run batch","Start job","Finish job","Next job","Status","Back","Close","Wheat","Corn","Soybean","Potato","Sunflower","Grass"],[cmd])>=0;}
 integer ownerNear()
 {return llGetAgentSize(llGetOwner())!=ZERO_VECTOR && near(llGetOwner(),8.0);}
 integer save(list before)
@@ -168,7 +204,7 @@ integer validBase(list v)
 {
     integer n=llGetListLength(v);
     if(n<BASE || n>BASE+32 || (n-BASE)%4)return FALSE;
-    if(!whole(v,0,1,1) || llList2String(v,2)!=KIND || !uuid(llList2String(v,1)))return FALSE;
+    if(!whole(v,0,SCHEMA,SCHEMA) || llList2String(v,2)!=KIND || !uuid(llList2String(v,1)))return FALSE;
     if(!whole(v,3,1,2147483647) || !whole(v,4,0,1))return FALSE;
     if(llList2Integer(v,5)!=1 && llList2Integer(v,5)!=60)return FALSE;
     if(!whole(v,5,1,60) || !numeric(v,6,0.0,1000000.0) || !whole(v,7,0,2147483647))return FALSE;
@@ -188,7 +224,7 @@ integer validBase(list v)
     return TRUE;
 }
 list header()
-{return [1,(string)llGetOwner(),KIND,llGetUnixTime(),0,1,0.0,0];}
+{return [SCHEMA,(string)llGetOwner(),KIND,llGetUnixTime(),0,1,0.0,0];}
 list outbox() { return ["",0,0,"",(string)llGenerateKey()]; }
 integer startTransfer(string kind,integer qty)
 {
@@ -211,12 +247,16 @@ close()
 show(string p)
 {
     close();page=p;channel=-10000-(integer)llFrand(1900000000.0);
-    handle=llListen(channel,"",llGetOwner(),"");expires=llGetUnixTime()+45;
+    if(visitor==NULL_KEY)visitor=llGetOwner();
+    handle=llListen(channel,"",visitor,"");expires=llGetUnixTime()+45;
     if(p=="target")
     {inputMode=TRUE;llTextBox(llGetOwner(),"Paste destination object's root UUID. Pending deliveries must finish before changing destination.",channel);return;}
+    if(textPage(p)){inputMode=2;llTextBox(visitor,textPrompt(),channel);return;}
     offered=buttons(p);
     if(p=="settings")offered+=["Diagnostics"];
-    llDialog(llGetOwner(),llGetSubString(summary(),0,450),offered,channel);
+    if(visitor!=llGetOwner())
+    {list filtered=[];integer k;for(k=0;k<llGetListLength(offered);++k)if(workerCommand(llList2String(offered,k)))filtered+=[llList2String(offered,k)];offered=filtered;}
+    llDialog(visitor,clipBytes(llGetSubString(summary(),0,450),450),offered,channel);
 }
 integer advance()
 {
@@ -275,7 +315,7 @@ render()
 {
     string text="LOCKED: saved state needs owner repair.";
     if(!fault)text=summary();
-    llSetText("Dream Farming - "+KIND+"\n"+text,<0.5,0.9,0.4>,1.0);
+    if(UI_HOVER)llSetText("Dream Farming - "+KIND+"\n"+text,<0.5,0.9,0.4>,1.0);
     if(!fault)llMessageLinked(LINK_SET,VIEW,visual(),NULL_KEY);
 }
 boot()
@@ -290,11 +330,12 @@ boot()
     }
     else
     {
-        S=llJson2List(raw);
+        S=migrate(llJson2List(raw));
         if(llJsonValueType(raw,[])!=JSON_ARRAY || !validBase(S) || !validSpecific(S) || sv(1)!=(string)llGetOwner())
         {fault=TRUE;llOwnerSay("Invalid, incompatible, or other-owner record. Preserved without changes. Restore the correct script/owner or use a fresh object.");}
+        else if(llList2Integer(llJson2List(raw),0)!=SCHEMA)save(llJson2List(raw));
     }
-    llListen(NET,"",NULL_KEY,"");extraBoot();llSetTimerEvent(15.0);
+    llListen(NET,"",NULL_KEY,"");llListen(DASH,"",NULL_KEY,"");extraBoot();llSetTimerEvent(15.0);
     if(!fault){advance();service();}render();
 }
 default
@@ -304,22 +345,31 @@ default
     changed(integer change){if(change & CHANGED_OWNER)llResetScript();}
     touch_start(integer count)
     {
-        if(llDetectedKey(0)!=llGetOwner() || !ownerNear() || fault)return;
+        if(!UI_TOUCH || !permitted(llDetectedKey(0)) || fault)return;
+        visitor=llDetectedKey(0);
         if(!advance()){llOwnerSay("Catching up saved farm time. Try again shortly.");return;}
         show("main");render();
     }
     listen(integer c,string name,key who,string msg)
     {
+        if(c==DASH && llJsonGetValue(msg,["op"])=="QUERY")
+        {
+            if(llStringLength(msg)>200 || llJsonValueType(msg,[])!=JSON_OBJECT || llJsonGetValue(msg,["v"])!="1" || !uuid(llJsonGetValue(msg,["nonce"])) || llGetOwnerKey(who)!=llGetOwner() || llGetAgentSize(who)!=ZERO_VECTOR || !near(who,96.0))return;
+            string text="LOCKED";if(!fault)text=summary();
+            llRegionSayTo(who,DASH,llList2Json(JSON_OBJECT,["v",1,"op","STATUS","nonce",llJsonGetValue(msg,["nonce"]),"kind",KIND,"text",llGetSubString(text,0,450),"fault",fault]));return;
+        }
         if(c==NET){receive(who,msg);render();return;}
         if(extraListen(c,who,msg)){render();return;}
-        if(fault || c!=channel || who!=llGetOwner() || llGetUnixTime()>=expires || !ownerNear())return;
+        if(fault || c!=channel || who!=visitor || llGetUnixTime()>=expires || !permitted(who))return;
         if(!inputMode && llListFindList(offered,[msg])<0)return;
+        if(who!=llGetOwner() && (!workerCommand(msg) || inputMode))return;
         integer input=inputMode;close();
         if(!advance()){llOwnerSay("Catching up saved farm time. Try again shortly.");return;}
         if(msg=="Close")return;
         if(msg=="Back"){show("main");return;}
         list before=S;string result="";
-        if(input)
+        if(input==2)result=action(msg);
+        else if(input==1)
         {
             if(iv(OUT+2)>0)result="Delivery pending; destination is locked.";
             else if(uuid(msg)){put(OUT,[msg]);result="Destination saved.";}else result="Invalid UUID.";
@@ -344,6 +394,6 @@ default
         if(!fault){advance();service();}render();
     }
     link_message(integer sender,integer number,string text,key id)
-    {if(number==VIEW+1)render();}
+    {if(number==VIEW+1)render();else extraLink(sender,number,text,id);}
 }
 

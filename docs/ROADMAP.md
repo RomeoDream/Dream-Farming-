@@ -1,28 +1,30 @@
 # Development milestones
 
-## M1 — LSL local simulation (implemented, local tests passing)
+## Implemented scripting expansion — 0.2.0 alpha
 
-Fields/soil/climate, six crops, finite resource consumption, equipment fuel/wear model, local storage/spoilage, four livestock species/cohorts, manure and bedding, managed composting, reliable local material delivery and existing Garden Botany applicator.
+The repository now includes the local farm simulation plus individual animals, production chains/storage, tractor driving and field coverage, irrigation equipment, board/work orders/group care, current Garden manure integration and optional existing-protocol fuel/power/bank adapters. See README and EXPANSION for the behavior actually supplied.
 
-## M2 — In-world qualification (pending)
+This closes the major scripting categories from the expansion plan. It does not certify an installation in Second Life or supply finished visual assets, a public commodity economy or hosting.
 
-Compile in the Second Life Mono editor, measure runtime memory, verify real dialogs, reset/rez behavior, object UUIDs, actual chat timing and stage meshes. Tune growth and care workload using observed play sessions. Fix and record failures before adding scale.
+## Next: qualify the complete farm in-world
 
-## M3 — Farming depth and asset work (planned)
+Compile all fourteen scripts as Mono, record memory at maximum herd/ledger/receipt capacity, tune vehicle hull/physics, and run the linked systems under real event timing. Verify Garden manure-to-compost-to-fertilizer, an actual TXAGO engine shutdown/restart, DPC outages and a bank-paid service invoice. Complete IN_WORLD_TESTS before treating the alpha as production-ready.
 
-- Drivable tractors, implement attachment points, working-width field coverage and speed-sensitive jobs.
-- Irrigation equipment, tanks and hoses with pressure/flow; external power/fuel adapters.
-- Crop-specific meshes, PBR materials, particle effects, growth-stage assets and animal animations.
-- Crop production chains, drying, hay/silage, milling, feed recipes and refrigerated storage.
-- Variable compost recipe assembly, species-specific manure analyses, wet/dry mass, richer quality transfer and flexible batch sizes.
-- Animal sexes, individual pedigrees/genetics, actual mating pairs, young maturation, replacement stock, grazing/pasture and manure spreading.
-- Shared workers/groups and permissions; synchronized farm calendar; diagnostics and audible/visual alarms.
-- More crops, orchards, orcharding tools, fencing, beekeeping/pollination and production buildings.
+## Asset and interaction expansion
 
-## M4 — Connected economy (deferred until APIs and server are chosen)
+- Crop-specific meshes and growth stages, PBR materials, realistic animal meshes/animation and sound.
+- Vehicle tuning, steering/wheel animation, hitch attachments, implement work animation, continuously swept working widths and physical load effects.
+- Hose/cable/pipe meshes with user connection controls; moving trailers and safe loading-zone interfaces.
+- Configurable breed/seed/produce grades, deep pedigree history, pasture regrowth, more detailed manure/slurry analyses and moisture-based grain grading.
+- More crops, orchards, greenhouses with growing beds, pollination/beekeeping and expanded food recipes.
+- A shared farm calendar, role assignments beyond group membership, automated field-job telemetry and owner-visible operational alerts.
 
-Authoritative persistent farm/entity records; versioned transactions with durable idempotency; auditable stock transfers; recovery after object deletion and identity changes; market offers, inventory packaging and cross-region logistics. Pair against the actual Dream Banking, TXAGO and Dream Power protocols. Do not invent compatibility or infer payments from local sandbox restock controls.
+## Later: authoritative servers and public trading
+
+Preserve local material names, immutable request IDs and explicit confirmation boundaries. Introduce server-owned farm/entity IDs, authenticated users, durable idempotent inventory transactions, stock provenance and audit logs. Add recovery for deleted/re-rezzed roots, cross-region logistics, transferable goods and market contracts only when the authoritative ledger can prevent copied-object stock from becoming value.
+
+The existing Office bills completed roleplay services; it is not a goods marketplace. Server work also needs lifecycle/reconciliation tests, deployment configuration, backup/restore and a migration plan for existing local farms. No unprovisioned endpoint or database is described as live.
 
 ## Acceptance rule
 
-A milestone is not verified merely because its scripts exist. Record automated checks, simulator tests and any unsolved limitations separately in STATUS.md.
+Keep implementation, local tests, simulator checks, asset delivery and live-service verification distinct. Record evidence and limitations in STATUS.md. A script existing in GitHub does not establish simulator performance or economic security.

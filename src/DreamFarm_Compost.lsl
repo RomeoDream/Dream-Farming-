@@ -54,16 +54,17 @@ string summary()
 list buttons(string p)
 {
     if(p=="settings")return ["Destination","Pause","Resume","Normal","Demo x60","Back","Close"];
-    return ["Start batch","Turn pile","Water pile","Dry pile","Browns 20","Refill water","Send compost","Service mixer","Settings","Close"];
+    return ["Start batch","Balanced batch","Leaf batch","Turn pile","Water pile","Dry pile","Browns 20","Refill water","Send compost","Service mixer","Settings","Close"];
 }
 string action(string cmd)
 {
-    if(cmd=="Start batch")
+    if(cmd=="Start batch" || cmd=="Balanced batch" || cmd=="Leaf batch")
     {
-        if(iv(17)!=0 || fv(8)<10.0 || fv(9)<5.0)return "Need an empty pile, 10 kg manure and 5 kg dry browns.";
+        float brown=5.0;if(cmd=="Balanced batch")brown=10.0;if(cmd=="Leaf batch")brown=20.0;
+        if(iv(17)!=0 || fv(8)<10.0 || fv(9)<brown)return "Need an empty pile, 10 kg manure and "+(string)brown+" kg dry browns.";
         // RP material model: manure C=30%, N=2%; dry browns C=45%, N=0.5%.
-        float cn=(10.0*0.30+5.0*0.45)/(10.0*0.02+5.0*0.005);
-        put(8,[fv(8)-10.0]);put(9,[fv(9)-5.0]);put(10,[15.0]);put(11,[cn]);
+        float cn=(10.0*0.30+brown*0.45)/(10.0*0.02+brown*0.005);
+        put(8,[fv(8)-10.0]);put(9,[fv(9)-brown]);put(10,[10.0+brown]);put(11,[cn]);
         put(12,[55.0]);put(13,[100.0]);put(14,[20.0]);put(15,[0.0]);put(16,[0.0]);put(17,[1]);
         return "Batch started. Turn and control moisture; then allow a separate curing stage.";
     }
@@ -89,7 +90,7 @@ string action(string cmd)
 }
 integer credit(string kind,integer qty)
 {
-    integer i=-1;if(kind=="MANURE")i=8;if(kind=="BROWNS")i=9;
+    integer i=-1;if(kind=="MANURE" || kind=="DIGESTATE")i=8;if(kind=="BROWNS")i=9;
     if(i<0 || fv(i)+(float)qty>1000000.0)return FALSE;
     put(i,[fv(i)+(float)qty]);return TRUE;
 }
@@ -97,4 +98,9 @@ string visual(){return llList2Json(JSON_OBJECT,["kind",KIND,"phase",iv(17),"temp
 extraBoot(){}
 integer extraListen(integer c,key who,string msg){return FALSE;}
 service(){sendTransfer();}
+integer SCHEMA=1;
+list migrate(list v){return v;}
+integer textPage(string p){return FALSE;}
+string textPrompt(){return "";}
+extraLink(integer sender,integer number,string text,key id){}
 // @include common.lslinc

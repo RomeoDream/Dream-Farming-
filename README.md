@@ -1,34 +1,39 @@
 # Dream Farming
 
-**Second Life farming roleplay, created for Romeo Dream. Version 0.1.0 alpha.**
+**Second Life farming simulation for Romeo Dream — 0.2.0 expansion alpha.**
 
-This repository contains LSL source for a serverless farming prototype. Automated tests execute the actual LSL event handlers through Lummao with mocked Second Life services. **Second Life Mono compilation, script memory, simulator timing and mesh operation still require in-world testing.** This is an alpha foundation, not a finished commercial farming game.
+Fourteen paste-ready LSL scripts connect crops, machinery, individual animals, manure, compost, storage, processing, irrigation and farm management. The core runs inside Second Life without an external server. Optional adapters use the existing Dream-Garden, TXAGO, Dream Power Company and Dream Banking interfaces.
 
-## Implemented
+**This is an implemented and locally tested scripting expansion. Second Life Mono memory, vehicle physics, live integrations and finished visual assets still require in-world qualification.** Realism is a configurable roleplay model; quantities and times are not agricultural or veterinary advice.
 
-| Component | Behavior |
+## Included systems
+
+| System | Implemented behavior |
 | --- | --- |
-| Fields | Wheat, corn, soybean, potato, sunflower and grass; tilling, sowing, thermal growth, harvest, seed return and crop residue |
-| Soil | Water balance, drainage/leaching, N/P/K fertility, pH, organic matter, compaction, weeds, pests, disease and repeat-crop penalty |
-| Climate | Seasonal temperature/rain/light, frost/heat damage, greenhouse shelter, powered conditioning and tank-fed irrigation |
-| Equipment model | Diesel use and wear for plowing, sowing and harvesting; service/refill controls. No drivable vehicle supplied yet |
-| Storage | Persistent crop quantities, ambient spoilage and local roleplay consumption |
-| Livestock | Cattle, chickens, sheep and pigs; feed/water use, hygiene, stress, health/death, milk/egg/wool, pregnancy/incubation and offspring counts |
-| Waste | Collect and transfer fresh manure, used bedding and dry crop residue to compost |
-| Compost | C:N recipe, moisture, oxygen, temperature, turning, mixer wear, active breakdown, separate curing, mass loss and mature stock |
-| Garden integration | Mature compost applicator using Dream-Garden Botany's existing MANURE interface |
-| Reliability | Atomic whole-object saves, failed-write rollback/lockout, durable outgoing loads, receiver sequence receipts and bounded offline catch-up |
+| Fields | Six crops, thermal growth, N/P/K, pH, organic matter, compaction, water balance, weeds, pests, disease, repeat-crop penalty, seasons and optional sowing windows |
+| Soil and climate | Loam/clay/sand water retention, frost/heat stress, greenhouse climate control, finite tank irrigation and local or DPC power |
+| Tractor and implements | Owner driving/steering, saved fuel leases, wear/repair, plow/sow/harvest/weed modes, actual-position 8×8 field coverage and reset-safe work progress |
+| Individual animals | Up to eight named cattle/chickens/sheep/pigs per herd; sex, age, weight, health, feed/water, parentage, inherited vigor, mating, birth/hatching, maturation and death |
+| Animal products | Milk, eggs, wool, manure and used bedding; finite export to other farm objects |
+| Waste and compost | Manure, browns, three compost recipes, oxygen/moisture/temperature management, active processing, curing and mature compost |
+| Processing | Feed, grain drying, flour, cheese, hay, silage, slurry, digestate, biogas and packaged potatoes; reserved inputs/output capacity, energy and wear |
+| Storage | Material selection, loading/unloading, finite capacity, spoilage and powered refrigeration; depot or parked trailer controller |
+| Irrigation | Finite water/energy, pump and valve, distance/head pressure, modeled leakage, repairs and reliable field-tank deliveries |
+| Management | Registered-object monitoring board, stale-reading detection, persistent work orders and opt-in group workers |
+| Optional integrations | Current Garden manure producer bridge; TXAGO engine authority; DPC appliance demand; Dream Banking service invoices |
+| Reliability | Atomic saves, durable transfer reservations/receipts, retry deduplication, bounded catch-up, invalid-record lockout and Field v0.1 migration |
 
-**Manure cycle:** feed livestock → muck out → transfer manure/bedding → manage compost → cure → deliver mature compost → fertilize a field or Garden plant. Fresh manure cannot be exported as mature compost. Timelines and material values are game parameters, not agricultural recommendations or pathogen-safety claims.
+**Manure cycle:** animal feed → manure + bedding → managed compost → mature fertilizer → soil → crops → feed. A second route converts manure + water into slurry, then digestate + biogas; digestate can enter compost, and biogas can generate local energy.
 
-## Start here
+## Get started
 
-1. [SETUP.md](docs/SETUP.md): build simple test objects and paste scripts from [lsl/](lsl/).
-2. [MANURE_AND_GARDEN.md](docs/MANURE_AND_GARDEN.md): waste cycle and exact Garden compatibility.
-3. [IN_WORLD_TESTS.md](docs/IN_WORLD_TESTS.md): acceptance checklist before a live farm.
-4. [STATUS.md](docs/STATUS.md): verification and remaining work.
+1. [Setup and object layout](docs/SETUP.md) — paste files from [lsl/](lsl/) into test objects.
+2. [Expansion walkthrough](docs/EXPANSION.md) — animals, machinery and production workflows.
+3. [Manure and Garden compatibility](docs/MANURE_AND_GARDEN.md) — current Garden and legacy paths differ.
+4. [Optional integrations](docs/INTEGRATIONS.md) — exact APIs and configuration.
+5. [Verification status](docs/STATUS.md) and [in-world acceptance checklist](docs/IN_WORLD_TESTS.md).
 
-No server, database, API key or payment account is needed. One controller belongs in each root prim. State stays in its linkset data store. Optional visuals switch named crop-stage children; meshes, materials, sounds and animal animations are not included.
+Core menus include clearly labeled sandbox deliveries. They create roleplay supplies without charging money. Bank invoices require explicit configuration and customer payment; totals are historical records, not spendable balances.
 
 ## Development
 
@@ -40,10 +45,12 @@ python tools/build.py
 python -m unittest discover -s tests -v
 ```
 
-Edit [src/](src/) then rebuild. Files in `lsl/` paste directly into the Second Life script editor without a preprocessor. CI checks generated copies and runs compilation and behavior tests.
+Edit [src/](src/), then rebuild. Generated `lsl/` files need no in-world preprocessor. CI verifies generated copies, compiles every script with Lummao and executes actual LSL event handlers with mocked simulator services.
 
-## Scope
+## Boundaries
 
-Owner-only menus, same-owner local material transfers and explicit roleplay restocking are implemented. This version does not debit money, deliver transferable inventory, authenticate modified clients, prevent object-copy duplication, or communicate across regions. No automatic Dream Banking, TXAGO or Dream Power connection is claimed. Those adapters require their actual protocols and independent integration tests. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ROADMAP.md](docs/ROADMAP.md).
+Material deliveries are same-owner, same-region and within 8 m, with eight retained sender streams per receiver. The board reads registered objects within 96 m. Pending deliveries are never automatically refunded. Copies of an object copy its stock; this is a cooperative farm, not a secure public economy.
 
-Original project and creator credit: **Romeo Dream / RomeoDream**. Dream-Garden's original code is unchanged; its read-only test fixture retains its header and is identified by upstream blob SHA.
+Individual animals are persistent records; meshes and animations are separate. The vehicle driver needs a suitable physical build. Crop meshes, sounds, PBR materials, animated implements, hose meshes, transferable packaged inventory, public market trading and authoritative cross-region servers are not included. See [roadmap](docs/ROADMAP.md).
+
+Project and creator credit: **Romeo Dream / RomeoDream**. Upstream Garden and Banking scripts are unchanged read-only test fixtures identified by Git blob SHA.

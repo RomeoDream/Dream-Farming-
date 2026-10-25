@@ -46,13 +46,21 @@ class World:
         self.link_messages = []
         self.alpha = {}
         self.position = ZERO
+        self.velocity = ZERO
+        self.rotation = lummao.Quaternion((0.,0.,0.,1.))
         self.positions = {OWNER: lummao.Vector((1., 0., 0.)), OTHER: lummao.Vector((2., 0., 0.))}
         self.net = network or Network()
         self.net.worlds[self.key] = self
         self.listen_count = 0
         self.listeners = {}
         self.timer = 0
+        self.group = NULL
+        self.members = set()
         self.s = None
+        self.sitter = NULL
+        self.physics = False
+        self.motors = {}
+        self.permission_requests = []
 
     def write(self, key, value):
         if self.fail_writes: return 1
@@ -70,7 +78,10 @@ class World:
             if who in self.net.worlds: return [self.net.worlds[who].position]
             if who in self.positions: return [self.positions[who]]
             return []
-        if request == [7]: return [NULL]
+        if request == [7]: return [self.group]
+        if request == [3,5]:
+            w=self.net.worlds.get(who)
+            return [w.position,w.velocity] if w else []
         raise AssertionError(request)
 
     def object_owner(self, who):
@@ -86,6 +97,8 @@ class World:
     async def boot(self):
         path = ROOT / 'lsl' / ('DreamFarm_' + self.module + '.lsl')
         if self.module == 'GardenReference': path = ROOT / 'tests/fixtures/DreamGarden_Botany.reference.lsl'
+        if self.module == 'GardenManure': path = ROOT / 'tests/fixtures/DreamGarden_FarmManure.v04.lsl'
+        if self.module == 'BankReference': path = ROOT / 'tests/fixtures/Dream_Bill_Terminal.reference.lsl'
         self.s = lummao.compile_script_file(str(path))
         for k, v in self.config.items(): setattr(self.s, k, v)
         mocks = {
@@ -95,6 +108,8 @@ class World:
             'llGetUnixTime': lambda: self.now,
             'llGetFreeMemory': lambda: 32768,
             'llGetPos': lambda: self.position,
+            'llGetRot': lambda: self.rotation,
+            'llGetVel': lambda: self.velocity,
             'llLinksetDataRead': lambda key: self.store.get(key, ''),
             'llLinksetDataWrite': self.write,
             'llSetTimerEvent': lambda value: setattr(self, 'timer', value),
@@ -105,10 +120,10 @@ class World:
             'llRegionSay': lambda *args: None,
             'llGetAgentSize': lambda who: lummao.Vector((0.5, 0.5, 1.8)) if who in self.positions else ZERO,
             'llGetObjectDetails': self.details,
-            'llSameGroup': lambda who: 0,
+            'llSameGroup': lambda who: int(who in self.members),
             'llListen': self.listen,
             'llListenRemove': lambda handle: self.listeners.pop(handle, None),
-            'llFrand': lambda n: float(self.listen_count + 100),
+            'llFrand': lambda n: float(n) * ((self.listen_count % 81 + 10) / 100.0),
             'llGenerateKey': lambda: lummao.Key(str(uuid.uuid4())),
             'llDialog': self.dialog,
             'llTextBox': lambda who, text, ch: self.dialog(who, text, [], ch),
@@ -116,7 +131,27 @@ class World:
             'llGetNumberOfPrims': lambda: 9,
             'llGetLinkName': lambda n: {2:'DF:Stage:0',3:'DF:Stage:1',4:'DF:Stage:2',5:'DF:Stage:3',6:'DF:Stage:4',7:'DF:Stage:5',8:'Fence',9:'DF:Stage:invalid'}.get(n,'Root'),
             'llSetLinkAlpha': lambda link, alpha, side: self.alpha.update({link:alpha}),
+            'llSetVehicleType': lambda kind: None,
+            'llSetVehicleVectorParam': lambda key,value: self.motors.update({key:value}),
+            'llSetVehicleFloatParam': lambda *args: None,
+            'llSetStatus': lambda key,value: setattr(self,'physics',bool(value)),
+            'llSitTarget': lambda *args: None,
+            'llAvatarOnSitTarget': lambda: self.sitter,
+            'llReleaseControls': lambda: None,
+            'llRequestPermissions': lambda who,perm: self.permission_requests.append((who,perm)),
+            'llGetPermissionsKey': lambda: self.sitter,
+            'llTakeControls': lambda *args: None,
+            'llUnSit': lambda who: setattr(self,'sitter',NULL),
+            'llSetPayPrice': lambda *args: None,
         }
+        if self.module == 'BankReference':
+            # Lummao omits this builtin. The unmodified adapter only sets one
+            # string member; deliberately reject any unimplemented JSON path.
+            def set_status(raw,path,value):
+                assert path == ['status'] and isinstance(value,str)
+                data=json.loads(raw);data['status']=value
+                return json.dumps(data,separators=(',',':'))
+            mocks['llJsonSetValue']=set_status
         for name, function in mocks.items():
             self.s.builtin_funcs[name] = function
         await self.s.execute()

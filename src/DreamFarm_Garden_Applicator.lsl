@@ -1,5 +1,7 @@
 // Receives mature COMPOST from DreamFarm_Compost, then uses the existing
 // Dream-Garden Botany MANURE protocol. Basic DreamGarden_Plot is not compatible.
+// LEGACY: pinned Garden Botany v0.3 only. For current Garden v0.4 use
+// DreamFarm_Garden_Link and the native Garden compost/fertilizer workflow.
 string DATA="dreamfarm:applicator:v1";
 string KIND="GARDEN APPLICATOR";
 integer OUT=15;
@@ -85,4 +87,9 @@ service()
     // Common 15-second timer is replaced while a short Garden request is live.
     llSetTimerEvent(2.0);
 }
+integer SCHEMA=1;
+list migrate(list v){return v;}
+integer textPage(string p){return FALSE;}
+string textPrompt(){return "";}
+extraLink(integer sender,integer number,string text,key id){}
 // @include common.lslinc

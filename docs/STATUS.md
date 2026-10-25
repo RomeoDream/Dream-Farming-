@@ -1,24 +1,25 @@
 # Status — 2026-10-25
 
-Version **0.1.0 alpha**, project credit **Romeo Dream**.
+Version **0.2.0 expansion alpha**. Project and creator credit: **Romeo Dream**.
 
-Implemented: five paste-ready LSL scripts, persistent local farming/livestock/compost behavior, material transfer reservations and receipts, and the existing Dream-Garden Botany fertilizer bridge. No external server is required.
+Fourteen generated LSL scripts implement the expanded local farm: six-crop soil/climate simulation, individual and cohort livestock, compost/manure flows, processing/storage, driving and field coverage, irrigation, monitoring, work orders and optional existing-protocol integrations. The core requires no external server.
 
 ## Verification
 
-- All five generated scripts compile with Lummao 0.5.2.
-- Generated copies match source includes.
-- Actual LSL behavior tests cover persistence, invalid records, ownership, resource consumption, crop growth/harvest, spoilage, animal production/births, compost maturity, replay/lost delivery, failed writes and Garden integration.
-- Tests use an unchanged Garden Botany fixture at blob `e51355c56537c5ca6133a35db66382d03862c05b`.
-- Current suite: **54 tests passing locally**. The test command is `python -m unittest discover -s tests -v`.
-- GitHub Actions also passed compilation, generated-file checks and all 54 tests at commit `704b07f0342423254f99ab3bce37318c38648600`: [successful run 40188834982](https://github.com/RomeoDream/Dream-Farming-/actions/runs/40188834982). An initial cache-configuration failure was corrected by specifying `requirements-dev.txt`.
+- Generated `lsl/` copies match their `src/` includes.
+- All fourteen scripts compile through Lummao 0.5.2.
+- The suite executes actual LSL events with mocked simulator builtins, storage, time, physics and message transport.
+- Tests cover ordinary reset/persistence, invalid data, ownership/group access, failed writes, crop/soil behavior, births/pedigree/growth, input/output reservations, all ten recipes, biogas generation, pump conservation, machine coverage/fuel leases, driver expiry, stale board state and invoice idempotency.
+- Garden tests run unchanged upstream Botany v0.3 and FarmManure v0.4 fixtures. Banking tests run the actual pinned Bill Terminal adapter with simulated bank responses. TXAGO and DPC tests exercise their inspected linked-message contracts; they do not run live servers or grids.
+- Fixtures and exact upstream source identifiers are documented in MANURE_AND_GARDEN.md and INTEGRATIONS.md. No upstream repositories were modified.
+- **104 tests pass locally**, using `python -m unittest discover -s tests -v`. GitHub Actions verification of the expansion commit is pending publication.
 
 ## Not yet verified
 
-Second Life Mono compilation, actual free script memory, viewer menus, simulator throttles and message timing, live reset/rez behavior, meshes and multi-object performance. See IN_WORLD_TESTS.md.
+Second Life Mono compilation and free memory, physical vehicle hull/handling, live viewer dialogs, simulator event timing/throttles, re-rez behavior, meshes/animation, real Garden compost completion, live TXAGO/DPC/bank interaction and multi-object performance. The explicit pending checklist is IN_WORLD_TESTS.md.
 
-## Material limitations
+## Material boundaries
 
-Owner-only operation; same-owner/same-region local transfers; eight durable sender streams per receiver; no automatic recovery from a deleted transfer destination. Copying an object copies its economic state. Garden timeouts hold a dose and require explicit discard without refund.
+This is cooperative local roleplay. Deliveries are same-owner/same-region within 8 m, with eight durable source streams per receiver. No automatic refund is offered for a deleted or uncertain destination. Copies duplicate their economic state. The board is local, and each field has its own seasonal clock.
 
-Field weather clocks start independently. Restocking and services are explicit roleplay controls with no charge; state counters are not bank balances. Young livestock are counts, not individual spawned animals. Equipment fuel/wear exists, but vehicle driving, working implements, asset models, connected banking/fuel/power and a server-backed market are future milestones.
+Animal records are individual but not rezzed meshes. The tractor driver is supplied without a finished physical/visual vehicle. Machine coverage is an 8×8 point-sampled grid, not continuous implement geometry. Stock uses normalized capacity with mixed RP units. Restocking is explicitly sandboxed. Office completion is a manual report; bank totals are history, not currency. Cross-owner goods sales, transferable inventory objects, towing, authoritative cross-region servers and a complete art package remain separate work.
