@@ -113,7 +113,8 @@ list buttons(string p)
 {
     if(p=="settings")return ["Destination","Pause","Resume","Normal","Demo x60","Back","Close"];
     if(p=="animals"){list b=[];integer i;for(i=0;i<countAnimals();++i)b+=["Animal "+(string)(i+1)];return b+["Back","Close"];}
-    if(p=="manage")return ["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar","Mare","Stallion","Jenny","Jack","Remove dead","Sandbox supplies","Back","Close"];
+    if(p=="manage")return ["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar","Equines","Remove dead","Sandbox supplies","Back","Close"];
+    if(p=="equines")return ["Mare","Stallion","Jenny","Jack","Back","Close"];
     if(p=="material")return materialButtons(iv(19));
     if(p=="export")return ["Select material","Send 1","Send 10","Back","Close"];
     return ["Animals","Inventory","Breed","Rename","Muck out","Treat","Grazing","Export","Manage","Settings","Close"];
@@ -128,14 +129,14 @@ string action(string cmd)
 {
     if(page=="rename")
     {if(llStringLength(cmd)<1 || llStringLength(cmd)>24)return "Name must contain 1-24 characters.";list a=animal(iv(10));a=llListReplaceList(a,[cmd],1,1);putAnimal(iv(10),a);page="main";return "Animal named.";}
-    if(cmd=="Animals"){page="animals";return "";}if(cmd=="Manage"){page="manage";return "";}
+    if(cmd=="Animals"){page="animals";return "";}if(cmd=="Manage"){page="manage";return "";}if(cmd=="Equines" && page=="manage"){page="equines";return "";}
     if(cmd=="Export"){page="export";return "";}if(cmd=="Select material"){page="material";put(19,[0]);return "";}
     if(page=="material")
     {if(cmd=="Next"){put(19,[(iv(19)+1)%4]);return "";}integer n=llListFindList(LABELS,[cmd]);if(n>=0){put(18,[n]);page="export";return "";}}
     if(page=="animals" && llSubStringIndex(cmd,"Animal ")==0)
     {integer i=(integer)llGetSubString(cmd,7,-1)-1;if(i>=0 && i<countAnimals())put(10,[i]);page="main";return "Selected animal.";}
     integer add=llListFindList(["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar","Mare","Stallion","Jenny","Jack"],[cmd]);
-    if(page=="manage" && add>=0)
+    if((page=="manage" && add>=0 && add<8) || (page=="equines" && add>=8))
     {if(countAnimals()>=8 || iv(13)>=1000000)return "Herd capacity reached.";integer sp=add/2;appendAnimal(makeAnimal(sp,1-add%2,llList2Float(MATURE,sp)+30.0,"","",1.0));put(13,[iv(13)+1]);return "SANDBOX adult added; no bank payment claimed.";}
     if(cmd=="Sandbox supplies")
     {if(totalStock()+700.0>1000000.0)return "Supplies full.";alter("FEED",200.0);alter("WATER",400.0);alter("BEDDING",50.0);alter("MEDICINE",50.0);return "SANDBOX feed, water, bedding and medicine delivered.";}
