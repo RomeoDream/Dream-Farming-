@@ -137,18 +137,15 @@ default {
   if(steps>4)steps=4;
   integer n=llGetListLength(assigned);
   if(n==0){lastCare=now;save();return;}
-  integer i;
-  for(i=0;i<steps;++i){
-   // Local stable-roleplay units only. Herd controller remains authoritative for animal welfare.
-   integer hayNeeded=n*2;
-   integer waterNeeded=n*3;
-   if(hay<hayNeeded || water<waterNeeded){careEnabled=FALSE;llOwnerSay("Stable care monitoring paused: insufficient displayed hay or water. Herd animal care is unaffected.");break;}
-   // Do not debit local stock until a Herd acknowledgment/transfer protocol exists.
-   lastSupplyAudit=now;
-   if(careAccountingMode) { hay-=hayNeeded;water-=waterNeeded; }
-   if(careAccountingMode && bedding>=n)bedding-=n;
-   if(stableManureEnabled)manure=clampInt(manure+n,0,MAX_STOCK);
+  // Stable monitoring is observational until the Herd supply protocol is implemented.
+  // No independent feed, water, bedding or manure accounting occurs here.
+  integer hayNeeded=n*2;
+  integer waterNeeded=n*3;
+  if(hay<hayNeeded || water<waterNeeded){
+   careEnabled=FALSE;
+   llOwnerSay("Stable monitoring paused: displayed supplies are low. Herd care is unaffected.");
   }
+  lastSupplyAudit=now;
   lastCare=now;
   save();
  }
