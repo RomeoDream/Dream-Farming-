@@ -108,7 +108,7 @@ default {
    else {pendingAnimal=message;pendingNonce=(string)llGenerateKey();pendingUntil=llGetUnixTime()+20;llRegionSayTo(herdRoot,herdChannel,llList2Json(JSON_OBJECT,["type","EQUINE_CHECK","animal",pendingAnimal,"nonce",pendingNonce]));llOwnerSay("Checking animal with Herd controller…");}
    menu(id);return;
   }
-  if(message=="Care on"){careEnabled=TRUE;lastCare=llGetUnixTime();}
+  if(message=="Care on"){careEnabled=TRUE;lastCare=llGetUnixTime();llOwnerSay("Care monitoring enabled. Herd remains authoritative; stable supplies are not deducted.");}
   else if(message=="Care off"){careEnabled=FALSE;}
   else if(message=="Add hay")hay=clampInt(hay+25,0,MAX_STOCK);
   else if(message=="Add water")water=clampInt(water+50,0,MAX_STOCK);
@@ -142,7 +142,7 @@ default {
    // Local stable-roleplay units only. Herd controller remains authoritative for animal welfare.
    integer hayNeeded=n*2;
    integer waterNeeded=n*3;
-   if(hay<hayNeeded || water<waterNeeded){careEnabled=FALSE;llOwnerSay("Stable care paused: insufficient hay or water.");break;}
+   if(hay<hayNeeded || water<waterNeeded){careEnabled=FALSE;llOwnerSay("Stable care monitoring paused: insufficient displayed hay or water. Herd animal care is unaffected.");break;}
    // Do not debit local stock until a Herd acknowledgment/transfer protocol exists.
    lastSupplyAudit=now;
    if(careAccountingMode) { hay-=hayNeeded;water-=waterNeeded; }
