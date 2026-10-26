@@ -13,6 +13,7 @@ integer pendingAssignment=FALSE;
 integer lastCare=0;
 integer careEnabled=FALSE;
 integer careAccountingMode=0; // 0=display-only stable supplies; Herd controls animal welfare.
+integer lastSupplyAudit=0;
 integer collectedManure=0;
 integer stableManureEnabled=FALSE; // Off by default: Herd already produces manure.
 key herdRoot=NULL_KEY;
@@ -42,6 +43,7 @@ save(){
  llLinksetDataWrite(PREFIX+"assigned",llList2Json(JSON_ARRAY,assigned));
  llLinksetDataWrite(PREFIX+"careEnabled",(string)careEnabled);
  llLinksetDataWrite(PREFIX+"careAccountingMode",(string)careAccountingMode);
+ llLinksetDataWrite(PREFIX+"lastSupplyAudit",(string)lastSupplyAudit);
  llLinksetDataWrite(PREFIX+"lastCare",(string)lastCare);
  llLinksetDataWrite(PREFIX+"collectedManure",(string)collectedManure);
  llLinksetDataWrite(PREFIX+"stableManureEnabled",(string)stableManureEnabled);
@@ -57,6 +59,7 @@ load(){
  manure=clampInt((integer)llLinksetDataRead(PREFIX+"manure"),0,MAX_STOCK);
  careEnabled=(integer)llLinksetDataRead(PREFIX+"careEnabled");
  careAccountingMode=0; // safety lock: never double-charge feed before Herd transfer protocol is ready.
+ lastSupplyAudit=(integer)llLinksetDataRead(PREFIX+"lastSupplyAudit");
  lastCare=(integer)llLinksetDataRead(PREFIX+"lastCare");
  collectedManure=clampInt((integer)llLinksetDataRead(PREFIX+"collectedManure"),0,MAX_STOCK);
  stableManureEnabled=(integer)llLinksetDataRead(PREFIX+"stableManureEnabled");
@@ -141,6 +144,7 @@ default {
    integer waterNeeded=n*3;
    if(hay<hayNeeded || water<waterNeeded){careEnabled=FALSE;llOwnerSay("Stable care paused: insufficient hay or water.");break;}
    // Do not debit local stock until a Herd acknowledgment/transfer protocol exists.
+   lastSupplyAudit=now;
    if(careAccountingMode) { hay-=hayNeeded;water-=waterNeeded; }
    if(careAccountingMode && bedding>=n)bedding-=n;
    if(stableManureEnabled)manure=clampInt(manure+n,0,MAX_STOCK);
