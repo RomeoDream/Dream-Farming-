@@ -12,6 +12,7 @@ integer MAX_STOCK=10000;
 integer pendingAssignment=FALSE;
 integer lastCare=0;
 integer careEnabled=FALSE;
+integer collectedManure=0;
 list assigned=[]; // animal UUID strings, manually registered by owner
 string PREFIX="dreamfarm:stable:v2:";
 integer clampInt(integer v,integer lo,integer hi){if(v<lo)return lo;if(v>hi)return hi;return v;}
@@ -25,6 +26,7 @@ save(){
  llLinksetDataWrite(PREFIX+"assigned",llList2Json(JSON_ARRAY,assigned));
  llLinksetDataWrite(PREFIX+"careEnabled",(string)careEnabled);
  llLinksetDataWrite(PREFIX+"lastCare",(string)lastCare);
+ llLinksetDataWrite(PREFIX+"collectedManure",(string)collectedManure);
 }
 load(){
  string value=llLinksetDataRead(PREFIX+"stalls");
@@ -36,13 +38,14 @@ load(){
  manure=clampInt((integer)llLinksetDataRead(PREFIX+"manure"),0,MAX_STOCK);
  careEnabled=(integer)llLinksetDataRead(PREFIX+"careEnabled");
  lastCare=(integer)llLinksetDataRead(PREFIX+"lastCare");
+ collectedManure=clampInt((integer)llLinksetDataRead(PREFIX+"collectedManure"),0,MAX_STOCK);
  string raw=llLinksetDataRead(PREFIX+"assigned");
  if(llJsonValueType(raw,[])==JSON_ARRAY)assigned=llJson2List(raw);
  else assigned=[];
  if(llGetListLength(assigned)>stalls)assigned=llList2List(assigned,0,stalls-1);
 }
 report(key who){
- llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Assignments "+llList2CSV(assigned));
+ llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Assignments "+llList2CSV(assigned));
 }
 menu(key who){
  llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Release last","Stalls +1","Stalls -1","Care on","Care off","Close"],CHANNEL);
@@ -73,7 +76,7 @@ default {
   else if(message=="Add hay")hay=clampInt(hay+25,0,MAX_STOCK);
   else if(message=="Add water")water=clampInt(water+50,0,MAX_STOCK);
   else if(message=="Add bedding")bedding=clampInt(bedding+20,0,MAX_STOCK);
-  else if(message=="Muck out"){manure=0;llOwnerSay("Local muck-out only; no manure transferred to compost.");}
+  else if(message=="Muck out"){integer space=MAX_STOCK-collectedManure;integer moved=clampInt(manure,0,space);collectedManure+=moved;manure-=moved;llOwnerSay("Muck-out collected "+(string)moved+" manure units. Stored locally for future compost delivery; no external transfer claimed.");}
   else if(message=="Release last"){
    if(llGetListLength(assigned)>0)assigned=llDeleteSubList(assigned,-1,-1);
   }
