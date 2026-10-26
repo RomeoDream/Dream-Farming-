@@ -109,7 +109,12 @@ default {
    else {pendingAnimal=message;pendingNonce=(string)llGenerateKey();pendingUntil=llGetUnixTime()+20;llRegionSayTo(herdRoot,herdChannel,llList2Json(JSON_OBJECT,["type","EQUINE_CHECK","animal",pendingAnimal,"nonce",pendingNonce]));llOwnerSay("Checking animal with Herd controller…");}
    menu(id);return;
   }
-  if(message=="Care on"){careEnabled=TRUE;lastCare=llGetUnixTime();llOwnerSay("Care monitoring enabled. Herd remains authoritative; stable supplies are not deducted.");}
+  if(message=="Care on"){
+   if(!validHerdRoot(herdRoot)){llOwnerSay("Cannot start monitoring: configure a nearby same-owner Herd.");menu(id);return;}
+   if(llGetListLength(assigned)==0){llOwnerSay("Cannot start monitoring: verify and assign an equine first.");menu(id);return;}
+   careEnabled=TRUE;lastCare=llGetUnixTime();
+   llOwnerSay("Care monitoring enabled. Herd remains authoritative; stable supplies are not deducted.");
+  }
   else if(message=="Care off"){careEnabled=FALSE;}
   else if(message=="Add hay")hay=clampInt(hay+25,0,MAX_STOCK);
   else if(message=="Add water")water=clampInt(water+50,0,MAX_STOCK);
@@ -128,6 +133,7 @@ default {
   save();report(id);menu(id);
  }
  timer(){
+  if(careEnabled && !validHerdRoot(herdRoot)){careEnabled=FALSE;save();llOwnerSay("Stable monitoring paused: linked Herd is missing, too far away, or has a different owner.");}
   if(pendingAnimal!="" && llGetUnixTime()>pendingUntil){pendingAnimal="";pendingNonce="";llOwnerSay("Herd verification timed out; no stall assignment made.");}
   if(!careEnabled)return;
   integer now=llGetUnixTime();
