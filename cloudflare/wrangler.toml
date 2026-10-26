@@ -5,5 +5,5 @@ compatibility_date = "2026-10-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "dream-farming"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "749ba832-3b8f-4d98-90a9-3ec8d28964a1"
 migrations_dir = "migrations"
