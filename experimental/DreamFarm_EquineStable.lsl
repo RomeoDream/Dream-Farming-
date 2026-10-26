@@ -18,6 +18,9 @@ key herdRoot=NULL_KEY;
 integer herdChannel=-918248;
 integer pendingHerd=FALSE;
 integer lastHerdCheck=0;
+string pendingAnimal="";
+string pendingNonce="";
+integer pendingUntil=0;
 list assigned=[]; // animal UUID strings, manually registered by owner
 string PREFIX="dreamfarm:stable:v2:";
 integer clampInt(integer v,integer lo,integer hi){if(v<lo)return lo;if(v>hi)return hi;return v;}
@@ -71,12 +74,20 @@ default {
   load();
   llSetTimerEvent(60.0);
   listenHandle=llListen(CHANNEL,"",llGetOwner(),"");
+  llListen(herdChannel,"",NULL_KEY,"");
   llSetText("Dream Stable | Equine care prototype",<1.0,0.5,0.8>,1.0);
  }
  on_rez(integer start){llResetScript();}
  changed(integer change){if(change & CHANGED_OWNER)llResetScript();}
  touch_start(integer count){key who=llDetectedKey(0);if(who==llGetOwner())menu(who);}
  listen(integer channel,string name,key id,string message){
+  if(channel==herdChannel){
+   if(id!=herdRoot || llGetOwnerKey(id)!=llGetOwner() || llGetUnixTime()>pendingUntil)return;
+   if(llJsonGetValue(message,["type"])!="EQUINE_RESULT" || llJsonGetValue(message,["nonce"])!=pendingNonce || llJsonGetValue(message,["animal"])!=pendingAnimal)return;
+   if(llJsonGetValue(message,["valid"])=="1" && llListFindList(assigned,[pendingAnimal])<0 && llGetListLength(assigned)<stalls){assigned += [pendingAnimal];save();llOwnerSay("Verified horse/donkey assigned to stable.");}
+   else llOwnerSay("Herd rejected animal or stable is full.");
+   pendingAnimal="";pendingNonce="";pendingUntil=0;return;
+  }
   if(id!=llGetOwner())return;
   if(message=="Status"){if(herdRoot!=NULL_KEY && !validHerdRoot(herdRoot))llOwnerSay("Warning: saved Herd object is no longer nearby or same-owner.");report(id);menu(id);return;}
   if(message=="Set Herd"){pendingHerd=TRUE;llTextBox(id,"Paste the Herd root object UUID. Must belong to the same owner and region.",CHANNEL);return;}
@@ -87,7 +98,8 @@ default {
    pendingAssignment=FALSE;
    if(llListFindList(assigned,[message])>=0)llOwnerSay("Animal already assigned.");
    else if(llGetListLength(assigned)>=stalls)llOwnerSay("Stable full.");
-   else {assigned += [message];save();llOwnerSay("Stall assignment saved locally.");}
+   else if(!validHerdRoot(herdRoot))llOwnerSay("Set a valid same-owner Herd first.");
+   else {pendingAnimal=message;pendingNonce=(string)llGenerateKey();pendingUntil=llGetUnixTime()+20;llRegionSayTo(herdRoot,herdChannel,llList2Json(JSON_OBJECT,["type","EQUINE_CHECK","animal",pendingAnimal,"nonce",pendingNonce]));llOwnerSay("Checking animal with Herd controller…");}
    menu(id);return;
   }
   if(message=="Care on"){careEnabled=TRUE;lastCare=llGetUnixTime();}
@@ -109,6 +121,7 @@ default {
   save();report(id);menu(id);
  }
  timer(){
+  if(pendingAnimal!="" && llGetUnixTime()>pendingUntil){pendingAnimal="";pendingNonce="";llOwnerSay("Herd verification timed out; no stall assignment made.");}
   if(!careEnabled)return;
   integer now=llGetUnixTime();
   if(lastCare<=0){lastCare=now;save();return;}
