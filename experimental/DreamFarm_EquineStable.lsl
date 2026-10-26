@@ -13,6 +13,7 @@ integer pendingAssignment=FALSE;
 integer lastCare=0;
 integer careEnabled=FALSE;
 integer collectedManure=0;
+integer stableManureEnabled=FALSE; // Off by default: Herd already produces manure.
 list assigned=[]; // animal UUID strings, manually registered by owner
 string PREFIX="dreamfarm:stable:v2:";
 integer clampInt(integer v,integer lo,integer hi){if(v<lo)return lo;if(v>hi)return hi;return v;}
@@ -27,6 +28,7 @@ save(){
  llLinksetDataWrite(PREFIX+"careEnabled",(string)careEnabled);
  llLinksetDataWrite(PREFIX+"lastCare",(string)lastCare);
  llLinksetDataWrite(PREFIX+"collectedManure",(string)collectedManure);
+ llLinksetDataWrite(PREFIX+"stableManureEnabled",(string)stableManureEnabled);
 }
 load(){
  string value=llLinksetDataRead(PREFIX+"stalls");
@@ -39,13 +41,14 @@ load(){
  careEnabled=(integer)llLinksetDataRead(PREFIX+"careEnabled");
  lastCare=(integer)llLinksetDataRead(PREFIX+"lastCare");
  collectedManure=clampInt((integer)llLinksetDataRead(PREFIX+"collectedManure"),0,MAX_STOCK);
+ stableManureEnabled=(integer)llLinksetDataRead(PREFIX+"stableManureEnabled");
  string raw=llLinksetDataRead(PREFIX+"assigned");
  if(llJsonValueType(raw,[])==JSON_ARRAY)assigned=llJson2List(raw);
  else assigned=[];
  if(llGetListLength(assigned)>stalls)assigned=llList2List(assigned,0,stalls-1);
 }
 report(key who){
- llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Assignments "+llList2CSV(assigned));
+ llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Manure source "+(string)stableManureEnabled+" | Assignments "+llList2CSV(assigned));
 }
 menu(key who){
  llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Release last","Stalls +1","Stalls -1","Care on","Care off","Close"],CHANNEL);
@@ -107,7 +110,7 @@ default {
    if(hay<hayNeeded || water<waterNeeded){careEnabled=FALSE;llOwnerSay("Stable care paused: insufficient hay or water.");break;}
    hay-=hayNeeded;water-=waterNeeded;
    if(bedding>=n)bedding-=n;
-   manure=clampInt(manure+n,0,MAX_STOCK);
+   if(stableManureEnabled)manure=clampInt(manure+n,0,MAX_STOCK);
   }
   lastCare=now;
   save();
