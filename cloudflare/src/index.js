@@ -1,3 +1,4 @@
+import { adminPage } from "./admin.js";
 // Dream Farming Cloudflare API — first secure state-sync milestone.
 // All authenticated endpoints require a per-object bearer credential.
 // Provision objects through the operator-only enrollment endpoint.
@@ -23,6 +24,7 @@ async function authenticate(request, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/admin" && request.method === "GET") return new Response(adminPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
     if (url.pathname === "/health" && request.method === "GET") return json({ ok: true, service: "dream-farming", version: 1 });
     if (url.pathname === "/v1/admin/enroll" && request.method === "POST") {
       // Configure ADMIN_TOKEN as a Worker secret, never in the repository.
