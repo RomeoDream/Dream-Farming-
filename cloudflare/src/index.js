@@ -149,6 +149,19 @@ export default {
         // An unchanged initial record is not evidence of a live simulator connection.
         reporting:o.revision>0 && !o.revoked
       }));
+      // Opt-in controller telemetry contract: {kind:"livestock"|"field"|"equipment",metrics:{animals,active_crops,equipment}}.
+      // Only positive, explicitly reported counts contribute; no guessed values.
+      const states=selected
+        ? await env.DB.prepare("SELECT state_json,revision FROM farm_objects WHERE farm_id=? AND revoked=0 AND revision>0 LIMIT 100").bind(selected).all()
+        : await env.DB.prepare("SELECT state_json,revision FROM farm_objects WHERE revoked=0 AND revision>0 LIMIT 100").all();
+      const totals={animals:null,active_crops:null,equipment:null};
+      const mapping={livestock:["animals","animals"],field:["active_crops","active_crops"],equipment:["equipment","equipment"]};
+      for(const record of states.results){
+        let state;try{state=JSON.parse(record.state_json)}catch{continue}
+        const pair=mapping[state?.kind];if(!pair)continue;
+        const value=state.metrics?.[pair[1]];
+        if(Number.isSafeInteger(value)&&value>=0&&value<=1000000)totals[pair[0]]=(totals[pair[0]]??0)+value;
+      }
       if(selected) {
         const farm=await env.DB.prepare("SELECT id,name FROM farms WHERE id=?").bind(selected).first();
         if(!farm)return fail("farm_not_found",404);
@@ -159,7 +172,7 @@ export default {
           env.DB.prepare("SELECT material,quantity FROM inventory WHERE farm_id=? ORDER BY quantity DESC LIMIT 10").bind(selected).all()
         ]);
         const all=await env.DB.prepare("SELECT id,name FROM farms ORDER BY name LIMIT 100").all();
-        return json({counts:{farms:1,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:all.results,inventory:inventory.results,telemetry,selected_farm:selected});
+        return json({counts:{farms:1,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:all.results,inventory:inventory.results,telemetry,totals,selected_farm:selected});
       }
       const [farms,objects,materials,transfers,list,inventory]=await Promise.all([
         env.DB.prepare("SELECT COUNT(*) n FROM farms").first(),
@@ -169,7 +182,7 @@ export default {
         env.DB.prepare("SELECT id,name FROM farms ORDER BY name LIMIT 100").all(),
         env.DB.prepare("SELECT material,SUM(quantity) quantity FROM inventory GROUP BY material ORDER BY quantity DESC LIMIT 10").all()
       ]);
-      return json({counts:{farms:farms.n,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:list.results,inventory:inventory.results,telemetry});
+      return json({counts:{farms:farms.n,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:list.results,inventory:inventory.results,telemetry,totals});
     }
     if (url.pathname === "/v1/admin/me" && request.method === "GET") {
       const bearer=request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{24,128})$/)?.[1];
