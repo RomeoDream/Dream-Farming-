@@ -111,9 +111,9 @@ string summary()
 }
 list buttons(string p)
 {
-    if(p=="settings")return ["Destination","Pause","Resume","Normal","Demo x60","Back","Close"];
+    if(p=="settings")return ["Destination","Pause","Resume","Normal","Demo x60","Sandbox supplies","Back","Close"];
     if(p=="animals"){list b=[];integer i;for(i=0;i<countAnimals();++i)b+=["Animal "+(string)(i+1)];return b+["Back","Close"];}
-    if(p=="manage")return ["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar","Equines","Remove dead","Sandbox supplies","Back","Close"];
+    if(p=="manage")return ["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar","Equines","Remove dead","Back","Close"];
     if(p=="equines")return ["Mare","Stallion","Jenny","Jack","Back","Close"];
     if(p=="material")return materialButtons(iv(19));
     if(p=="export")return ["Select material","Send 1","Send 10","Back","Close"];
