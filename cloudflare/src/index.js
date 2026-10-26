@@ -96,6 +96,37 @@ export default {
       const row=await env.DB.prepare("SELECT farm_id FROM farm_sessions WHERE token_hash=? AND expires_at>?").bind(await sha256(bearer),Math.floor(Date.now()/1000)).first();
       return row?json({farm_id:row.farm_id}):fail("unauthorized",401);
     }
+    if (url.pathname === "/v1/admin/bootstrap" && request.method === "POST") {
+      if (!env.ADMIN_TOKEN || request.headers.get("x-admin-token") !== env.ADMIN_TOKEN) return fail("unauthorized",401);
+      let d; try { d=await readJson(request); } catch { return fail("invalid_request",400); }
+      if(d.username!=="RomeoDream" || typeof d.password!=="string" || d.password.length<14 || d.password.length>256)return fail("invalid_input",400);
+      const existing=await env.DB.prepare("SELECT id FROM admin_accounts LIMIT 1").first();
+      if(existing)return fail("admin_already_exists",409);
+      const salt=encode(crypto.getRandomValues(new Uint8Array(16)));
+      const hash=await passwordHash(d.password,salt);
+      try {
+        await env.DB.prepare("INSERT INTO admin_accounts(id,username,password_salt,password_hash) VALUES(?,?,?,?)").bind("primary-admin","RomeoDream",salt,hash).run();
+        return json({ok:true,username:"RomeoDream"},201);
+      } catch {return fail("admin_already_exists",409);}
+    }
+    if (url.pathname === "/v1/admin/login" && request.method === "POST") {
+      let d;try{d=await readJson(request);}catch{return fail("invalid_request",400);}
+      if(typeof d.username!=="string"||typeof d.password!=="string")return fail("invalid_credentials",401);
+      const row=await env.DB.prepare("SELECT id,username,password_salt,password_hash,password_iterations FROM admin_accounts WHERE username=? COLLATE NOCASE AND disabled=0").bind(d.username).first();
+      if(!row)return fail("invalid_credentials",401);
+      const hash=await passwordHash(d.password,row.password_salt,row.password_iterations);
+      if(hash!==row.password_hash)return fail("invalid_credentials",401);
+      const token=encode(crypto.getRandomValues(new Uint8Array(32)));
+      const expires=Math.floor(Date.now()/1000)+1800;
+      await env.DB.prepare("INSERT INTO admin_sessions(token_hash,admin_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),row.id,expires).run();
+      return json({ok:true,token,expires_at:expires,username:row.username});
+    }
+    if (url.pathname === "/v1/admin/me" && request.method === "GET") {
+      const bearer=request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{24,128})$/)?.[1];
+      if(!bearer)return fail("unauthorized",401);
+      const row=await env.DB.prepare("SELECT a.username FROM admin_sessions s JOIN admin_accounts a ON a.id=s.admin_id WHERE s.token_hash=? AND s.expires_at>? AND a.disabled=0").bind(await sha256(bearer),Math.floor(Date.now()/1000)).first();
+      return row?json({username:row.username}):fail("unauthorized",401);
+    }
     if (!url.pathname.startsWith("/v1/")) return fail("not_found", 404);
     const identity = await authenticate(request, env);
     if (!identity) return fail("unauthorized", 401);
