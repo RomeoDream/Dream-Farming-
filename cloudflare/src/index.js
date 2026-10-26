@@ -25,7 +25,7 @@ async function authenticate(request, env) {
 }
 
 // PBKDF2 password verification: unique random salt per farm account.
-function encode(bytes) { return btoa(String.fromCharCode(...bytes)).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,""); }
+function encode(bytes) { return btoa(String.fromCharCode(...bytes)).split("+").join("-").split("/").join("_").replace(/=+$/,""); }
 function decode(s) { return Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0)); }
 async function passwordHash(password,salt,iterations=310000) {
   const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);
