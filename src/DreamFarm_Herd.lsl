@@ -170,8 +170,27 @@ string action(string cmd)
 integer credit(string kind,integer qty)
 {if(llListFindList(["FEED","WATER","BEDDING","GRASS","MEDICINE"],[kind])<0 || stock(kind)+qty>1000000.0)return FALSE;alter(kind,qty);return TRUE;}
 string visual(){return llList2Json(JSON_OBJECT,["kind",KIND,"animals",countAnimals(),"selected",iv(10),"fault",fault]);}
-extraBoot(){}
-integer extraListen(integer c,key who,string msg){return FALSE;}
+extraBoot(){llListen(-918248,"",NULL_KEY,"");}
+integer extraListen(integer c,key who,string msg)
+{
+    if(c!=-918248)return FALSE;
+    if(llGetOwnerKey(who)!=llGetOwner())return TRUE;
+    list info=llGetObjectDetails(who,[OBJECT_POS]);
+    if(llGetListLength(info)<1 || llVecDist(llGetPos(),llList2Vector(info,0))>96.0)return TRUE;
+    if(llJsonGetValue(msg,["type"])!="EQUINE_CHECK")return TRUE;
+    string id=llJsonGetValue(msg,["animal"]);
+    string nonce=llJsonGetValue(msg,["nonce"]);
+    if(llStringLength(nonce)>64 || llStringLength(nonce)<8)return TRUE;
+    integer i;integer found=FALSE;
+    for(i=0;i<countAnimals();++i)
+    {
+        list a=animal(i);
+        integer sp=llList2Integer(a,2);
+        if(llList2String(a,0)==id && (sp==4 || sp==5) && llList2Integer(a,15))found=TRUE;
+    }
+    llRegionSayTo(who,-918248,llList2Json(JSON_OBJECT,["type","EQUINE_RESULT","animal",id,"nonce",nonce,"valid",found]));
+    return TRUE;
+}
 extraLink(integer sender,integer number,string text,key id){}
 integer textPage(string p){return p=="rename";}
 string textPrompt(){return "Name the selected animal (1-24 characters).";}
