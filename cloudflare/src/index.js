@@ -137,6 +137,18 @@ export default {
       if(!admin)return fail("unauthorized",401);
       const selected=url.searchParams.get("farm_id");
       if(selected && !validId(selected))return fail("invalid_farm_id",400);
+      const objectSql=selected
+        ? "SELECT id,farm_id,revision,updated_at,revoked FROM farm_objects WHERE farm_id=? ORDER BY updated_at DESC LIMIT 100"
+        : "SELECT id,farm_id,revision,updated_at,revoked FROM farm_objects ORDER BY updated_at DESC LIMIT 100";
+      const objectRows=selected
+        ? await env.DB.prepare(objectSql).bind(selected).all()
+        : await env.DB.prepare(objectSql).all();
+      const telemetry=objectRows.results.map(o=>({
+        id:o.id,farm_id:o.farm_id,revision:o.revision,revoked:!!o.revoked,
+        updated_at:o.updated_at,
+        // An unchanged initial record is not evidence of a live simulator connection.
+        reporting:o.revision>0 && !o.revoked
+      }));
       if(selected) {
         const farm=await env.DB.prepare("SELECT id,name FROM farms WHERE id=?").bind(selected).first();
         if(!farm)return fail("farm_not_found",404);
@@ -147,7 +159,7 @@ export default {
           env.DB.prepare("SELECT material,quantity FROM inventory WHERE farm_id=? ORDER BY quantity DESC LIMIT 10").bind(selected).all()
         ]);
         const all=await env.DB.prepare("SELECT id,name FROM farms ORDER BY name LIMIT 100").all();
-        return json({counts:{farms:1,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:all.results,inventory:inventory.results,selected_farm:selected});
+        return json({counts:{farms:1,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:all.results,inventory:inventory.results,telemetry,selected_farm:selected});
       }
       const [farms,objects,materials,transfers,list,inventory]=await Promise.all([
         env.DB.prepare("SELECT COUNT(*) n FROM farms").first(),
@@ -157,7 +169,7 @@ export default {
         env.DB.prepare("SELECT id,name FROM farms ORDER BY name LIMIT 100").all(),
         env.DB.prepare("SELECT material,SUM(quantity) quantity FROM inventory GROUP BY material ORDER BY quantity DESC LIMIT 10").all()
       ]);
-      return json({counts:{farms:farms.n,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:list.results,inventory:inventory.results});
+      return json({counts:{farms:farms.n,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:list.results,inventory:inventory.results,telemetry});
     }
     if (url.pathname === "/v1/admin/me" && request.method === "GET") {
       const bearer=request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{24,128})$/)?.[1];
