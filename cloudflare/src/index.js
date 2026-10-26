@@ -1,3 +1,4 @@
+import { adminLoginPage } from "./admin-login.js";
 import { accountsPage } from "./accounts.js";
 import { adminPage } from "./admin.js";
 // Dream Farming Cloudflare API — first secure state-sync milestone.
@@ -33,6 +34,7 @@ async function passwordHash(password,salt,iterations=310000) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/admin-login" && request.method === "GET") return new Response(adminLoginPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
     if (url.pathname === "/farm-login" && request.method === "GET") return new Response(accountsPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
     if (url.pathname === "/admin" && request.method === "GET") return new Response(adminPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
     if (url.pathname === "/health" && request.method === "GET") return json({ ok: true, service: "dream-farming", version: 1 });
