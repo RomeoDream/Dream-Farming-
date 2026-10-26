@@ -29,7 +29,7 @@ function encode(bytes) { return btoa(String.fromCharCode(...bytes)).split("+").j
 function decode(s) { return Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0)); }
 async function passwordHash(password,salt,iterations=310000) {
   const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);
-  return encode(await crypto.subtle.deriveBits({name:"PBKDF2",salt:decode(salt),iterations,hash:"SHA-256"},key,256));
+  return encode(new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2",salt:decode(salt),iterations,hash:"SHA-256"},key,256)));
 }
 export default {
   async fetch(request, env) {
