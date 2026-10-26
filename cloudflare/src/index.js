@@ -27,7 +27,7 @@ async function authenticate(request, env) {
 // PBKDF2 password verification: unique random salt per farm account.
 function encode(bytes) { return btoa(String.fromCharCode(...bytes)).split("+").join("-").split("/").join("_").replace(/=+$/,""); }
 function decode(s) { return Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0)); }
-async function passwordHash(password,salt,iterations=310000) {
+async function passwordHash(password,salt,iterations=100000) {
   const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);
   return encode(new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2",salt:decode(salt),iterations,hash:"SHA-256"},key,256)));
 }
@@ -74,7 +74,7 @@ export default {
       const salt=encode(crypto.getRandomValues(new Uint8Array(16)));
       const hash=await passwordHash(data.password,salt);
       try {
-        const r=await env.DB.prepare("INSERT INTO farm_accounts(farm_id,login_name,password_salt,password_hash,password_iterations) SELECT id,?,?,?,310000 FROM farms WHERE id=?").bind(data.login_name.trim(),salt,hash,data.farm_id).run();
+        const r=await env.DB.prepare("INSERT INTO farm_accounts(farm_id,login_name,password_salt,password_hash,password_iterations) SELECT id,?,?,?,100000 FROM farms WHERE id=?").bind(data.login_name.trim(),salt,hash,data.farm_id).run();
         if(r.meta.changes!==1)return fail("farm_not_found",404);
         return json({ok:true,farm_id:data.farm_id},201);
       } catch { return fail("account_exists_or_invalid",409); }
@@ -107,7 +107,7 @@ export default {
       const salt=encode(crypto.getRandomValues(new Uint8Array(16)));
       let hash; try { hash=await passwordHash(d.password,salt); } catch (e) { console.error("admin password derivation failed",e); return fail("password_setup_unavailable",503); }
       try {
-        await env.DB.prepare("INSERT INTO admin_accounts(id,username,password_salt,password_hash) VALUES(?,?,?,?)").bind("primary-admin","RomeoDream",salt,hash).run();
+        await env.DB.prepare("INSERT INTO admin_accounts(id,username,password_salt,password_hash,password_iterations) VALUES(?,?,?,?,100000)").bind("primary-admin","RomeoDream",salt,hash).run();
         return json({ok:true,username:"RomeoDream"},201);
       } catch (e) { console.error("admin bootstrap insert failed",e); return fail("admin_database_write_failed",503); }
     }
