@@ -21,4 +21,4 @@ jobs:
       - name: Verify generated LSL
         run: python tools/build.py --check
       - name: Run equine source regression tests
-        run: python -m unittest tests.test_equine_source -v
+        run: python -m unittest discover -s tests -p 'test_equine_source.py' -v
