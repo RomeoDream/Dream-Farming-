@@ -102,14 +102,14 @@ export default {
       if (!env.ADMIN_TOKEN || request.headers.get("x-admin-token") !== env.ADMIN_TOKEN) return fail("unauthorized",401);
       let d; try { d=await readJson(request); } catch { return fail("invalid_request",400); }
       if(d.username!=="RomeoDream" || typeof d.password!=="string" || d.password.length<14 || d.password.length>256)return fail("invalid_input",400);
-      const existing=await env.DB.prepare("SELECT id FROM admin_accounts LIMIT 1").first();
+      let existing; try { existing=await env.DB.prepare("SELECT id FROM admin_accounts LIMIT 1").first(); } catch (e) { console.error("admin bootstrap database read failed",e); return fail("admin_database_unavailable",503); }
       if(existing)return fail("admin_already_exists",409);
       const salt=encode(crypto.getRandomValues(new Uint8Array(16)));
-      const hash=await passwordHash(d.password,salt);
+      let hash; try { hash=await passwordHash(d.password,salt); } catch (e) { console.error("admin password derivation failed",e); return fail("password_setup_unavailable",503); }
       try {
         await env.DB.prepare("INSERT INTO admin_accounts(id,username,password_salt,password_hash) VALUES(?,?,?,?)").bind("primary-admin","RomeoDream",salt,hash).run();
         return json({ok:true,username:"RomeoDream"},201);
-      } catch {return fail("admin_already_exists",409);}
+      } catch (e) { console.error("admin bootstrap insert failed",e); return fail("admin_database_write_failed",503); }
     }
     if (url.pathname === "/v1/admin/login" && request.method === "POST") {
       let d;try{d=await readJson(request);}catch{return fail("invalid_request",400);}
