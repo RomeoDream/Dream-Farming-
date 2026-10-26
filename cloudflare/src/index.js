@@ -21,6 +21,14 @@ async function authenticate(request, env) {
   const hash = await sha256(token);
   return env.DB.prepare("SELECT id, farm_id, revision FROM farm_objects WHERE credential_hash = ? AND revoked = 0").bind(hash).first();
 }
+
+// PBKDF2 password verification: unique random salt per farm account.
+function encode(bytes) { return btoa(String.fromCharCode(...bytes)).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,""); }
+function decode(s) { return Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0)); }
+async function passwordHash(password,salt,iterations=310000) {
+  const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);
+  return encode(await crypto.subtle.deriveBits({name:"PBKDF2",salt:decode(salt),iterations,hash:"SHA-256"},key,256));
+}
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -54,6 +62,37 @@ export default {
       const result = await env.DB.prepare("UPDATE farm_objects SET credential_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND farm_id=? AND revoked=0").bind(hash, data.object_id, data.farm_id).run();
       if (result.meta.changes !== 1) return fail("object_not_found", 404);
       return json({ ok: true, object_id: data.object_id, credential });
+    }
+    if (url.pathname === "/v1/admin/accounts" && request.method === "POST") {
+      if (!env.ADMIN_TOKEN || request.headers.get("x-admin-token") !== env.ADMIN_TOKEN) return fail("unauthorized",401);
+      let data; try { data=await readJson(request); } catch { return fail("invalid_request",400); }
+      if (!validId(data.farm_id) || typeof data.login_name!=="string" || data.login_name.trim().length<3 || data.login_name.length>120 || typeof data.password!=="string" || data.password.length<12 || data.password.length>256) return fail("invalid_input",400);
+      const salt=encode(crypto.getRandomValues(new Uint8Array(16)));
+      const hash=await passwordHash(data.password,salt);
+      try {
+        const r=await env.DB.prepare("INSERT INTO farm_accounts(farm_id,login_name,password_salt,password_hash,password_iterations) SELECT id,?,?,?,310000 FROM farms WHERE id=?").bind(data.login_name.trim(),salt,hash,data.farm_id).run();
+        if(r.meta.changes!==1)return fail("farm_not_found",404);
+        return json({ok:true,farm_id:data.farm_id},201);
+      } catch { return fail("account_exists_or_invalid",409); }
+    }
+    if (url.pathname === "/v1/auth/login" && request.method === "POST") {
+      let data; try { data=await readJson(request); } catch { return fail("invalid_request",400); }
+      if(typeof data.login_name!=="string" || typeof data.password!=="string")return fail("invalid_credentials",401);
+      const row=await env.DB.prepare("SELECT farm_id,password_salt,password_hash,password_iterations FROM farm_accounts WHERE login_name=? COLLATE NOCASE").bind(data.login_name).first();
+      if(!row)return fail("invalid_credentials",401);
+      const hash=await passwordHash(data.password,row.password_salt,row.password_iterations);
+      if(hash!==row.password_hash)return fail("invalid_credentials",401);
+      const token=encode(crypto.getRandomValues(new Uint8Array(32)));
+      const tokenHash=await sha256(token);
+      const expires=Math.floor(Date.now()/1000)+3600;
+      await env.DB.prepare("INSERT INTO farm_sessions(token_hash,farm_id,expires_at) VALUES(?,?,?)").bind(tokenHash,row.farm_id,expires).run();
+      return json({token,expires_at:expires,farm_id:row.farm_id});
+    }
+    if (url.pathname === "/v1/auth/me" && request.method === "GET") {
+      const bearer=request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{24,128})$/)?.[1];
+      if(!bearer)return fail("unauthorized",401);
+      const row=await env.DB.prepare("SELECT farm_id FROM farm_sessions WHERE token_hash=? AND expires_at>?").bind(await sha256(bearer),Math.floor(Date.now()/1000)).first();
+      return row?json({farm_id:row.farm_id}):fail("unauthorized",401);
     }
     if (!url.pathname.startsWith("/v1/")) return fail("not_found", 404);
     const identity = await authenticate(request, env);
