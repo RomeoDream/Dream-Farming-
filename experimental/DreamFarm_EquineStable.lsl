@@ -9,6 +9,9 @@ integer water=0;
 integer bedding=0;
 integer manure=0;
 integer MAX_STOCK=10000;
+integer pendingAssignment=FALSE;
+integer lastCare=0;
+integer careEnabled=FALSE;
 list assigned=[]; // animal UUID strings, manually registered by owner
 string PREFIX="dreamfarm:stable:v2:";
 integer clampInt(integer v,integer lo,integer hi){if(v<lo)return lo;if(v>hi)return hi;return v;}
@@ -20,6 +23,8 @@ save(){
  llLinksetDataWrite(PREFIX+"bedding",(string)bedding);
  llLinksetDataWrite(PREFIX+"manure",(string)manure);
  llLinksetDataWrite(PREFIX+"assigned",llList2Json(JSON_ARRAY,assigned));
+ llLinksetDataWrite(PREFIX+"careEnabled",(string)careEnabled);
+ llLinksetDataWrite(PREFIX+"lastCare",(string)lastCare);
 }
 load(){
  string value=llLinksetDataRead(PREFIX+"stalls");
@@ -29,6 +34,8 @@ load(){
  water=clampInt((integer)llLinksetDataRead(PREFIX+"water"),0,MAX_STOCK);
  bedding=clampInt((integer)llLinksetDataRead(PREFIX+"bedding"),0,MAX_STOCK);
  manure=clampInt((integer)llLinksetDataRead(PREFIX+"manure"),0,MAX_STOCK);
+ careEnabled=(integer)llLinksetDataRead(PREFIX+"careEnabled");
+ lastCare=(integer)llLinksetDataRead(PREFIX+"lastCare");
  string raw=llLinksetDataRead(PREFIX+"assigned");
  if(llJsonValueType(raw,[])==JSON_ARRAY)assigned=llJson2List(raw);
  else assigned=[];
@@ -38,11 +45,12 @@ report(key who){
  llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Assignments "+llList2CSV(assigned));
 }
 menu(key who){
- llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Release last","Stalls +1","Stalls -1","Close"],CHANNEL);
+ llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Release last","Stalls +1","Stalls -1","Care on","Care off","Close"],CHANNEL);
 }
 default {
  state_entry(){
   load();
+  llSetTimerEvent(60.0);
   listenHandle=llListen(CHANNEL,"",llGetOwner(),"");
   llSetText("Dream Stable | Equine care prototype",<1.0,0.5,0.8>,1.0);
  }
@@ -52,14 +60,17 @@ default {
  listen(integer channel,string name,key id,string message){
   if(id!=llGetOwner())return;
   if(message=="Status"){report(id);menu(id);return;}
-  if(message=="Assign UUID"){llTextBox(id,"Paste an existing Herd animal UUID. This is a local assignment, not yet verified against the Herd controller.",CHANNEL);return;}
-  if(validUUID(message)){
+  if(message=="Assign UUID"){pendingAssignment=TRUE;llTextBox(id,"Paste an existing Herd animal UUID. This is a local assignment, not yet verified against the Herd controller.",CHANNEL);return;}
+  if(pendingAssignment && validUUID(message)){
+   pendingAssignment=FALSE;
    if(llListFindList(assigned,[message])>=0)llOwnerSay("Animal already assigned.");
    else if(llGetListLength(assigned)>=stalls)llOwnerSay("Stable full.");
    else {assigned += [message];save();llOwnerSay("Stall assignment saved locally.");}
    menu(id);return;
   }
-  if(message=="Add hay")hay=clampInt(hay+25,0,MAX_STOCK);
+  if(message=="Care on"){careEnabled=TRUE;lastCare=llGetUnixTime();}
+  else if(message=="Care off"){careEnabled=FALSE;}
+  else if(message=="Add hay")hay=clampInt(hay+25,0,MAX_STOCK);
   else if(message=="Add water")water=clampInt(water+50,0,MAX_STOCK);
   else if(message=="Add bedding")bedding=clampInt(bedding+20,0,MAX_STOCK);
   else if(message=="Muck out"){manure=0;llOwnerSay("Local muck-out only; no manure transferred to compost.");}
@@ -72,7 +83,30 @@ default {
    else llOwnerSay("Release an assigned animal before reducing stall capacity.");
   }
   else if(message=="Close")return;
-  else {llOwnerSay("Invalid command or UUID.");menu(id);return;}
+  else {pendingAssignment=FALSE;llOwnerSay("Invalid command or UUID.");menu(id);return;}
   save();report(id);menu(id);
+ }
+ timer(){
+  if(!careEnabled)return;
+  integer now=llGetUnixTime();
+  if(lastCare<=0){lastCare=now;save();return;}
+  // Bound catch-up to four hourly steps after resets or long region downtime.
+  integer steps=(now-lastCare)/3600;
+  if(steps<=0)return;
+  if(steps>4)steps=4;
+  integer n=llGetListLength(assigned);
+  if(n==0){lastCare=now;save();return;}
+  integer i;
+  for(i=0;i<steps;++i){
+   // Local stable-roleplay units only. Herd controller remains authoritative for animal welfare.
+   integer hayNeeded=n*2;
+   integer waterNeeded=n*3;
+   if(hay<hayNeeded || water<waterNeeded){careEnabled=FALSE;llOwnerSay("Stable care paused: insufficient hay or water.");break;}
+   hay-=hayNeeded;water-=waterNeeded;
+   if(bedding>=n)bedding-=n;
+   manure=clampInt(manure+n,0,MAX_STOCK);
+  }
+  lastCare=now;
+  save();
  }
 }
