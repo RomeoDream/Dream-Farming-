@@ -1,3 +1,4 @@
+import { dashboardPage } from "./dashboard.js";
 import { adminLoginPage } from "./admin-login.js";
 import { accountsPage } from "./accounts.js";
 import { adminPage } from "./admin.js";
@@ -34,6 +35,7 @@ async function passwordHash(password,salt,iterations=100000) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/dashboard" && request.method === "GET") return new Response(dashboardPage, {headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store"}});
     if (url.pathname === "/admin-login" && request.method === "GET") return new Response(adminLoginPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
     if (url.pathname === "/farm-login" && request.method === "GET") return new Response(accountsPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
     if (url.pathname === "/admin" && request.method === "GET") return new Response(adminPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
@@ -121,7 +123,7 @@ export default {
       const token=encode(crypto.getRandomValues(new Uint8Array(32)));
       const expires=Math.floor(Date.now()/1000)+1800;
       await env.DB.prepare("INSERT INTO admin_sessions(token_hash,admin_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),row.id,expires).run();
-      return json({ok:true,token,expires_at:expires,username:row.username});
+      return new Response(JSON.stringify({ok:true,expires_at:expires,username:row.username}),{headers:{"content-type":"application/json","cache-control":"no-store","set-cookie":"dream_admin="+token+"; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=1800"}});
     }
     if (url.pathname === "/v1/admin/me" && request.method === "GET") {
       const bearer=request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{24,128})$/)?.[1];
