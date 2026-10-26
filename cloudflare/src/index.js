@@ -125,6 +125,26 @@ export default {
       await env.DB.prepare("INSERT INTO admin_sessions(token_hash,admin_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),row.id,expires).run();
       return new Response(JSON.stringify({ok:true,expires_at:expires,username:row.username}),{headers:{"content-type":"application/json","cache-control":"no-store","set-cookie":"dream_admin="+token+"; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=1800"}});
     }
+    if (url.pathname === "/v1/admin/logout" && request.method === "POST") {
+      const cookie=request.headers.get("cookie")?.split(";").map(x=>x.trim()).find(x=>x.startsWith("dream_admin="))?.slice(12);
+      if(cookie)await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(await sha256(cookie)).run();
+      return new Response(JSON.stringify({ok:true}),{headers:{"content-type":"application/json","set-cookie":"dream_admin=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0"}});
+    }
+    if (url.pathname === "/v1/admin/summary" && request.method === "GET") {
+      const cookie=request.headers.get("cookie")?.split(";").map(x=>x.trim()).find(x=>x.startsWith("dream_admin="))?.slice(12);
+      if(!cookie)return fail("unauthorized",401);
+      const admin=await env.DB.prepare("SELECT a.id FROM admin_sessions s JOIN admin_accounts a ON a.id=s.admin_id WHERE s.token_hash=? AND s.expires_at>? AND a.disabled=0").bind(await sha256(cookie),Math.floor(Date.now()/1000)).first();
+      if(!admin)return fail("unauthorized",401);
+      const [farms,objects,materials,transfers,list,inventory]=await Promise.all([
+        env.DB.prepare("SELECT COUNT(*) n FROM farms").first(),
+        env.DB.prepare("SELECT COUNT(*) n FROM farm_objects").first(),
+        env.DB.prepare("SELECT COUNT(*) n FROM inventory").first(),
+        env.DB.prepare("SELECT COUNT(*) n FROM transfer_receipts").first(),
+        env.DB.prepare("SELECT id,name FROM farms ORDER BY name LIMIT 100").all(),
+        env.DB.prepare("SELECT material,SUM(quantity) quantity FROM inventory GROUP BY material ORDER BY quantity DESC LIMIT 10").all()
+      ]);
+      return json({counts:{farms:farms.n,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:list.results,inventory:inventory.results});
+    }
     if (url.pathname === "/v1/admin/me" && request.method === "GET") {
       const bearer=request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{24,128})$/)?.[1];
       if(!bearer)return fail("unauthorized",401);
