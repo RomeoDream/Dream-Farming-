@@ -14,6 +14,10 @@ integer lastCare=0;
 integer careEnabled=FALSE;
 integer collectedManure=0;
 integer stableManureEnabled=FALSE; // Off by default: Herd already produces manure.
+key herdRoot=NULL_KEY;
+integer herdChannel=-918248;
+integer pendingHerd=FALSE;
+integer lastHerdCheck=0;
 list assigned=[]; // animal UUID strings, manually registered by owner
 string PREFIX="dreamfarm:stable:v2:";
 integer clampInt(integer v,integer lo,integer hi){if(v<lo)return lo;if(v>hi)return hi;return v;}
@@ -29,6 +33,7 @@ save(){
  llLinksetDataWrite(PREFIX+"lastCare",(string)lastCare);
  llLinksetDataWrite(PREFIX+"collectedManure",(string)collectedManure);
  llLinksetDataWrite(PREFIX+"stableManureEnabled",(string)stableManureEnabled);
+ llLinksetDataWrite(PREFIX+"herdRoot",(string)herdRoot);
 }
 load(){
  string value=llLinksetDataRead(PREFIX+"stalls");
@@ -42,16 +47,17 @@ load(){
  lastCare=(integer)llLinksetDataRead(PREFIX+"lastCare");
  collectedManure=clampInt((integer)llLinksetDataRead(PREFIX+"collectedManure"),0,MAX_STOCK);
  stableManureEnabled=(integer)llLinksetDataRead(PREFIX+"stableManureEnabled");
+ herdRoot=(key)llLinksetDataRead(PREFIX+"herdRoot");
  string raw=llLinksetDataRead(PREFIX+"assigned");
  if(llJsonValueType(raw,[])==JSON_ARRAY)assigned=llJson2List(raw);
  else assigned=[];
  if(llGetListLength(assigned)>stalls)assigned=llList2List(assigned,0,stalls-1);
 }
 report(key who){
- llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Manure source "+(string)stableManureEnabled+" | Assignments "+llList2CSV(assigned));
+ llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Herd "+(string)herdRoot+" | Manure source "+(string)stableManureEnabled+" | Assignments "+llList2CSV(assigned));
 }
 menu(key who){
- llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Release last","Stalls +1","Stalls -1","Care on","Care off","Close"],CHANNEL);
+ llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Set Herd","Release last","Stalls +1","Care on","Care off","Close"],CHANNEL);
 }
 default {
  state_entry(){
@@ -66,6 +72,8 @@ default {
  listen(integer channel,string name,key id,string message){
   if(id!=llGetOwner())return;
   if(message=="Status"){report(id);menu(id);return;}
+  if(message=="Set Herd"){pendingHerd=TRUE;llTextBox(id,"Paste the Herd root object UUID. Must belong to the same owner and region.",CHANNEL);return;}
+  if(pendingHerd){pendingHerd=FALSE;if(validUUID(message)){herdRoot=(key)message;save();llOwnerSay("Herd root saved. Link handshake not yet active.");}else llOwnerSay("Invalid Herd UUID.");menu(id);return;}
   if(message=="Assign UUID"){pendingAssignment=TRUE;llTextBox(id,"Paste an existing Herd animal UUID. This is a local assignment, not yet verified against the Herd controller.",CHANNEL);return;}
   if(pendingAssignment && validUUID(message)){
    pendingAssignment=FALSE;
