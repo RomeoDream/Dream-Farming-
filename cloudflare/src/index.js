@@ -42,6 +42,19 @@ export default {
         return json({ object_id: data.object_id, farm_id: data.farm_id, credential }, 201);
       } catch (e) { return fail("invalid_request", 400); }
     }
+    if (url.pathname === "/v1/admin/rotate" && request.method === "POST") {
+      const provided = request.headers.get("x-admin-token");
+      if (!env.ADMIN_TOKEN || !provided || provided !== env.ADMIN_TOKEN) return fail("unauthorized", 401);
+      let data;
+      try { data = await readJson(request); } catch { return fail("invalid_request", 400); }
+      if (!validId(data.farm_id) || !validId(data.object_id)) return fail("invalid_input", 400);
+      const bytes = crypto.getRandomValues(new Uint8Array(32));
+      const credential = btoa(String.fromCharCode(...bytes)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+      const hash = await sha256(credential);
+      const result = await env.DB.prepare("UPDATE farm_objects SET credential_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND farm_id=? AND revoked=0").bind(hash, data.object_id, data.farm_id).run();
+      if (result.meta.changes !== 1) return fail("object_not_found", 404);
+      return json({ ok: true, object_id: data.object_id, credential });
+    }
     if (!url.pathname.startsWith("/v1/")) return fail("not_found", 404);
     const identity = await authenticate(request, env);
     if (!identity) return fail("unauthorized", 401);
