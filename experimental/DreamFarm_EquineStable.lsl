@@ -22,6 +22,13 @@ list assigned=[]; // animal UUID strings, manually registered by owner
 string PREFIX="dreamfarm:stable:v2:";
 integer clampInt(integer v,integer lo,integer hi){if(v<lo)return lo;if(v>hi)return hi;return v;}
 integer validUUID(string value){return (key)value!=NULL_KEY && llStringLength(value)==36;}
+integer validHerdRoot(key target){
+ if(target==NULL_KEY || target==llGetKey())return FALSE;
+ list details=llGetObjectDetails(target,[OBJECT_OWNER,OBJECT_POS]);
+ if(llGetListLength(details)!=2)return FALSE;
+ if(llList2Key(details,0)!=llGetOwner())return FALSE;
+ return llVecDist(llGetPos(),llList2Vector(details,1))<=96.0;
+}
 save(){
  llLinksetDataWrite(PREFIX+"stalls",(string)stalls);
  llLinksetDataWrite(PREFIX+"hay",(string)hay);
@@ -71,10 +78,11 @@ default {
  touch_start(integer count){key who=llDetectedKey(0);if(who==llGetOwner())menu(who);}
  listen(integer channel,string name,key id,string message){
   if(id!=llGetOwner())return;
-  if(message=="Status"){report(id);menu(id);return;}
+  if(message=="Status"){if(herdRoot!=NULL_KEY && !validHerdRoot(herdRoot))llOwnerSay("Warning: saved Herd object is no longer nearby or same-owner.");report(id);menu(id);return;}
   if(message=="Set Herd"){pendingHerd=TRUE;llTextBox(id,"Paste the Herd root object UUID. Must belong to the same owner and region.",CHANNEL);return;}
-  if(pendingHerd){pendingHerd=FALSE;if(validUUID(message)){herdRoot=(key)message;save();llOwnerSay("Herd root saved. Link handshake not yet active.");}else llOwnerSay("Invalid Herd UUID.");menu(id);return;}
+  if(pendingHerd){pendingHerd=FALSE;if(validUUID(message) && validHerdRoot((key)message)){herdRoot=(key)message;save();llOwnerSay("Same-owner, nearby object saved. Herd identity handshake is still pending.");}else llOwnerSay("Herd target must be an existing same-owner object within 96 m.");menu(id);return;}
   if(message=="Assign UUID"){pendingAssignment=TRUE;llTextBox(id,"Paste an existing Herd animal UUID. This is a local assignment, not yet verified against the Herd controller.",CHANNEL);return;}
+  if(pendingAssignment && !validUUID(message)){pendingAssignment=FALSE;llOwnerSay("Invalid animal UUID; no assignment saved.");menu(id);return;}
   if(pendingAssignment && validUUID(message)){
    pendingAssignment=FALSE;
    if(llListFindList(assigned,[message])>=0)llOwnerSay("Animal already assigned.");
