@@ -30,7 +30,7 @@ class EquineSourceTests(unittest.TestCase):
         self.assertIn("whole(a,2,0,5)", self.herd)
 
     def test_dialogs_obey_twelve_button_limit(self):
-        for match in re.finditer(r'if\(p=="(?:manage|equines)"\)return \[([^\]]+)\];', self.herd):
+        for match in re.finditer(r'if\(p=="(?:manage|equines|settings)"\)return \[([^\]]+)\];', self.herd):
             self.assertLessEqual(len(re.findall(r'"[^"]+"', match.group(1))), 12)
         # Stable menu is defined by llDialog, not a named function return.
         stable = re.search(r'llDialog\(who,[^\n]*\[([^\]]+)\],CHANNEL\)', self.stable)
