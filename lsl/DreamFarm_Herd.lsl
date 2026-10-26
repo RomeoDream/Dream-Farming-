@@ -9,10 +9,10 @@ integer SCHEMA=1;integer OUT=23;integer BASE=28;
 // 21 maximum animals;22 reserved;23..27 outbox.
 // Animal: id,name,species,sex,age,weight,health,hunger,thirst,stress,due,
 // sire,dam,genetic,lactation,alive,mateID,mateGenetic. sex 0 male,1 female.
-list SPECIES=["Cattle","Chicken","Sheep","Pig"];
-list MATURE=[540.0,150.0,365.0,240.0];
-list ADULT_WEIGHT=[600.0,2.5,70.0,180.0];
-list GESTATION=[283.0,21.0,147.0,114.0];
+list SPECIES=["Cattle","Chicken","Sheep","Pig","Horse","Donkey"];
+list MATURE=[540.0,150.0,365.0,240.0,1095.0,1095.0];
+list ADULT_WEIGHT=[600.0,2.5,70.0,180.0,450.0,250.0];
+list GESTATION=[283.0,21.0,147.0,114.0,340.0,365.0];
 // Shared unit catalog. ENERGY=kWh, WATER/MILK/DIESEL/SLURRY=L, EGGS=count;
 // all other materials use roleplay kg. Capacity is normalized storage units.
 list MATERIALS=["WHEAT","CORN","SOYBEAN","POTATO","SUNFLOWER","GRASS","BROWNS","MANURE","COMPOST","FEED","WATER","DIESEL","ENERGY","BEDDING","MILK","EGGS","WOOL","FLOUR","CHEESE","HAY","SILAGE","WET_WHEAT","WET_CORN","SEED","FERTILIZER","PARTS","SLURRY","BIOGAS","PACKED_PRODUCE","DIGESTATE","MEDICINE"];
@@ -72,7 +72,7 @@ integer validSpecific(list v)
         if(llGetListLength(a)!=18 || !uuid(llList2String(a,0)) || llListFindList(ids,[llList2String(a,0)])>=0)return FALSE;
         ids+=[llList2String(a,0)];
         if(llGetListEntryType(a,1)!=TYPE_STRING || llStringLength(llList2String(a,1))>24)return FALSE;
-        if(!whole(a,2,0,3) || !whole(a,3,0,1) || !whole(a,15,0,1))return FALSE;
+        if(!whole(a,2,0,5) || !whole(a,3,0,1) || !whole(a,15,0,1))return FALSE;
         for(j=4;j<=9;++j)if(!numeric(a,j,0.0,1000000.0))return FALSE;
         for(j=6;j<=9;++j)if(!numeric(a,j,0.0,100.0))return FALSE;
         if(!numeric(a,10,-1.0,1000000.0) || !numeric(a,13,0.8,1.2) || !numeric(a,14,0.0,300.0) || !numeric(a,17,0.8,1.2))return FALSE;
@@ -85,7 +85,7 @@ integer validSpecific(list v)
     return whole(v,12,0,1000000) && whole(v,13,0,1000000) && numeric(v,15,0.0,100.0) && whole(v,18,0,30) && whole(v,19,0,3) && whole(v,20,0,1000000) && whole(v,21,8,8);
 }
 float need(list a)
-{integer sp=llList2Integer(a,2);return llList2Float([20.0,0.15,2.0,4.0],sp)*clamp(llList2Float(a,4)/llList2Float(MATURE,sp),0.1,1.0);}
+{integer sp=llList2Integer(a,2);return llList2Float([20.0,0.15,2.0,4.0,10.0,6.0],sp)*clamp(llList2Float(a,4)/llList2Float(MATURE,sp),0.1,1.0);}
 tick(float dt)
 {
     integer n=countAnimals();integer i;float demand=0.0;
@@ -146,7 +146,7 @@ list buttons(string p)
 {
     if(p=="settings")return ["Destination","Pause","Resume","Normal","Demo x60","Back","Close"];
     if(p=="animals"){list b=[];integer i;for(i=0;i<countAnimals();++i)b+=["Animal "+(string)(i+1)];return b+["Back","Close"];}
-    if(p=="manage")return ["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar","Remove dead","Sandbox supplies","Back","Close"];
+    if(p=="manage")return ["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar","Mare","Stallion","Jenny","Jack","Remove dead","Sandbox supplies","Back","Close"];
     if(p=="material")return materialButtons(iv(19));
     if(p=="export")return ["Select material","Send 1","Send 10","Back","Close"];
     return ["Animals","Inventory","Breed","Rename","Muck out","Treat","Grazing","Export","Manage","Settings","Close"];
@@ -167,7 +167,7 @@ string action(string cmd)
     {if(cmd=="Next"){put(19,[(iv(19)+1)%4]);return "";}integer n=llListFindList(LABELS,[cmd]);if(n>=0){put(18,[n]);page="export";return "";}}
     if(page=="animals" && llSubStringIndex(cmd,"Animal ")==0)
     {integer i=(integer)llGetSubString(cmd,7,-1)-1;if(i>=0 && i<countAnimals())put(10,[i]);page="main";return "Selected animal.";}
-    integer add=llListFindList(["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar"],[cmd]);
+    integer add=llListFindList(["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar","Mare","Stallion","Jenny","Jack"],[cmd]);
     if(page=="manage" && add>=0)
     {if(countAnimals()>=8 || iv(13)>=1000000)return "Herd capacity reached.";integer sp=add/2;appendAnimal(makeAnimal(sp,1-add%2,llList2Float(MATURE,sp)+30.0,"","",1.0));put(13,[iv(13)+1]);return "SANDBOX adult added; no bank payment claimed.";}
     if(cmd=="Sandbox supplies")
