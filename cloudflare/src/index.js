@@ -135,6 +135,20 @@ export default {
       if(!cookie)return fail("unauthorized",401);
       const admin=await env.DB.prepare("SELECT a.id FROM admin_sessions s JOIN admin_accounts a ON a.id=s.admin_id WHERE s.token_hash=? AND s.expires_at>? AND a.disabled=0").bind(await sha256(cookie),Math.floor(Date.now()/1000)).first();
       if(!admin)return fail("unauthorized",401);
+      const selected=url.searchParams.get("farm_id");
+      if(selected && !validId(selected))return fail("invalid_farm_id",400);
+      if(selected) {
+        const farm=await env.DB.prepare("SELECT id,name FROM farms WHERE id=?").bind(selected).first();
+        if(!farm)return fail("farm_not_found",404);
+        const [objects,materials,transfers,inventory]=await Promise.all([
+          env.DB.prepare("SELECT COUNT(*) n FROM farm_objects WHERE farm_id=?").bind(selected).first(),
+          env.DB.prepare("SELECT COUNT(*) n FROM inventory WHERE farm_id=?").bind(selected).first(),
+          env.DB.prepare("SELECT COUNT(*) n FROM transfer_receipts WHERE farm_id=?").bind(selected).first(),
+          env.DB.prepare("SELECT material,quantity FROM inventory WHERE farm_id=? ORDER BY quantity DESC LIMIT 10").bind(selected).all()
+        ]);
+        const all=await env.DB.prepare("SELECT id,name FROM farms ORDER BY name LIMIT 100").all();
+        return json({counts:{farms:1,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:all.results,inventory:inventory.results,selected_farm:selected});
+      }
       const [farms,objects,materials,transfers,list,inventory]=await Promise.all([
         env.DB.prepare("SELECT COUNT(*) n FROM farms").first(),
         env.DB.prepare("SELECT COUNT(*) n FROM farm_objects").first(),
