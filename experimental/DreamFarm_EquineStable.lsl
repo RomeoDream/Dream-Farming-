@@ -15,6 +15,11 @@ integer careEnabled=FALSE;
 // Local stable supply quantities are observational until an acknowledged transfer exists.
 integer careAccountingMode=0;
 integer lastSupplyAudit=0;
+integer NET=-163847025;
+string transferStream="";
+integer transferSeq=0;
+integer pendingWater=0;
+integer lastWaterSend=0;
 integer collectedManure=0;
 // Stable never creates manure: Herd is authoritative.
 integer stableManureEnabled=FALSE;
@@ -46,6 +51,9 @@ save(){
  llLinksetDataWrite(PREFIX+"careEnabled",(string)careEnabled);
  llLinksetDataWrite(PREFIX+"careAccountingMode",(string)careAccountingMode);
  llLinksetDataWrite(PREFIX+"lastSupplyAudit",(string)lastSupplyAudit);
+ llLinksetDataWrite(PREFIX+"transferStream",transferStream);
+ llLinksetDataWrite(PREFIX+"transferSeq",(string)transferSeq);
+ llLinksetDataWrite(PREFIX+"pendingWater",(string)pendingWater);
  llLinksetDataWrite(PREFIX+"lastCare",(string)lastCare);
  llLinksetDataWrite(PREFIX+"collectedManure",(string)collectedManure);
  llLinksetDataWrite(PREFIX+"stableManureEnabled",(string)stableManureEnabled);
@@ -62,6 +70,10 @@ load(){
  careEnabled=(integer)llLinksetDataRead(PREFIX+"careEnabled");
  careAccountingMode=0; // safety lock: never double-charge feed before Herd transfer protocol is ready.
  lastSupplyAudit=(integer)llLinksetDataRead(PREFIX+"lastSupplyAudit");
+ transferStream=llLinksetDataRead(PREFIX+"transferStream");
+ if(transferStream=="")transferStream=(string)llGenerateKey();
+ transferSeq=(integer)llLinksetDataRead(PREFIX+"transferSeq");
+ pendingWater=clampInt((integer)llLinksetDataRead(PREFIX+"pendingWater"),0,1000);
  lastCare=(integer)llLinksetDataRead(PREFIX+"lastCare");
  collectedManure=clampInt((integer)llLinksetDataRead(PREFIX+"collectedManure"),0,MAX_STOCK);
  stableManureEnabled=(integer)llLinksetDataRead(PREFIX+"stableManureEnabled");
@@ -79,10 +91,10 @@ load(){
  if(llGetListLength(assigned)>stalls)assigned=llList2List(assigned,0,stalls-1);
 }
 report(key who){
- llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Herd "+(string)herdRoot+" | Manure source "+(string)stableManureEnabled+" | Assignments "+llList2CSV(assigned));
+ llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Pending water "+(string)pendingWater+" | Herd "+(string)herdRoot+" | Manure source "+(string)stableManureEnabled+" | Assignments "+llList2CSV(assigned));
 }
 menu(key who){
- llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Set Herd","Release last","Stalls +1","Care on","Care off","Close"],CHANNEL);
+ llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Set Herd","Release last","Send water","Care on","Care off","Close"],CHANNEL);
 }
 default {
  state_entry(){
@@ -90,12 +102,19 @@ default {
   llSetTimerEvent(60.0);
   listenHandle=llListen(CHANNEL,"",llGetOwner(),"");
   llListen(herdChannel,"",NULL_KEY,"");
+  llListen(NET,"",NULL_KEY,"");
   llSetText("Dream Stable | Equine care prototype",<1.0,0.5,0.8>,1.0);
  }
  on_rez(integer start){llResetScript();}
  changed(integer change){if(change & CHANGED_OWNER)llResetScript();}
  touch_start(integer count){key who=llDetectedKey(0);if(who==llGetOwner())menu(who);}
  listen(integer channel,string name,key id,string message){
+  if(channel==NET){
+   if(pendingWater<=0 || id!=herdRoot || llGetOwnerKey(id)!=llGetOwner() || !validHerdRoot(herdRoot))return;
+   if(llJsonGetValue(message,["v"])!="1" || llJsonGetValue(message,["op"])!="ACK" || llJsonGetValue(message,["target"])!=(string)llGetKey())return;
+   if(llJsonGetValue(message,["stream"])!=transferStream || (integer)llJsonGetValue(message,["seq"])!=transferSeq || (integer)llJsonGetValue(message,["qty"])!=pendingWater || llJsonGetValue(message,["kind"])!="WATER")return;
+   water-=pendingWater;pendingWater=0;save();llOwnerSay("Herd acknowledged water delivery; stable stock debited once.");return;
+  }
   if(channel==herdChannel){
    if(pendingAnimal=="" || pendingNonce=="")return;
    if(id!=herdRoot || llGetOwnerKey(id)!=llGetOwner() || !validHerdRoot(herdRoot) || llGetUnixTime()>pendingUntil)return;
@@ -117,6 +136,13 @@ default {
    else if(!validHerdRoot(herdRoot))llOwnerSay("Set a valid same-owner Herd first.");
    else {pendingAnimal=message;pendingNonce=(string)llGenerateKey();pendingUntil=llGetUnixTime()+20;llRegionSayTo(herdRoot,herdChannel,llList2Json(JSON_OBJECT,["type","EQUINE_CHECK","animal",pendingAnimal,"nonce",pendingNonce]));llOwnerSay("Checking animal with Herd controller…");}
    menu(id);return;
+  }
+  if(message=="Send water"){
+   if(pendingWater>0){llOwnerSay("Previous water delivery still pending.");menu(id);return;}
+   if(!validHerdRoot(herdRoot) || llVecDist(llGetPos(),llList2Vector(llGetObjectDetails(herdRoot,[OBJECT_POS]),0))>8.0){llOwnerSay("Water delivery requires the same-owner Herd within 8 m.");menu(id);return;}
+   if(water<10){llOwnerSay("At least 10 water units required.");menu(id);return;}
+   if(transferSeq>=999999999){llOwnerSay("Transfer sequence exhausted; manual migration required.");menu(id);return;}
+   pendingWater=10;transferSeq+=1;save();lastWaterSend=0;llOwnerSay("Water delivery reserved; awaiting Herd acknowledgment.");menu(id);return;
   }
   if(message=="Care on"){
    if(!validHerdRoot(herdRoot)){llOwnerSay("Cannot start monitoring: configure a nearby same-owner Herd.");menu(id);return;}
@@ -143,6 +169,10 @@ default {
  }
  timer(){
   if(careEnabled && !validHerdRoot(herdRoot)){careEnabled=FALSE;save();llOwnerSay("Stable monitoring paused: linked Herd is missing, too far away, or has a different owner.");}
+  if(pendingWater>0 && validHerdRoot(herdRoot) && llGetUnixTime()-lastWaterSend>=10){
+   lastWaterSend=llGetUnixTime();
+   llRegionSayTo(herdRoot,NET,llList2Json(JSON_OBJECT,["v",1,"op","LOAD","target",(string)herdRoot,"stream",transferStream,"seq",transferSeq,"qty",pendingWater,"kind","WATER"]));
+  }
   if(pendingAnimal!="" && llGetUnixTime()>pendingUntil){pendingAnimal="";pendingNonce="";llOwnerSay("Herd verification timed out; no stall assignment made.");}
   if(!careEnabled)return;
   integer now=llGetUnixTime();
