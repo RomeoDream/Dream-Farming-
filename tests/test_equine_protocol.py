@@ -59,6 +59,16 @@ class EquineProtocolTests(unittest.TestCase):
         ):
             self.assertIn(fragment, STABLE)
 
+    def test_pending_delivery_retry_audit_is_persistent(self):
+        for fragment in (
+            'llLinksetDataWrite(PREFIX+"pendingStarted"',
+            'llLinksetDataWrite(PREFIX+"transferAttempts"',
+            'pendingStarted=llGetUnixTime()',
+            'transferAttempts+=1',
+            'pendingStarted=0;transferAttempts=0;save();',
+        ):
+            self.assertIn(fragment, STABLE)
+
     def test_owner_transfer_clears_state(self):
         self.assertIn('llLinksetDataWrite(PREFIX+"owner"', STABLE)
         self.assertIn('savedOwner!=(string)llGetOwner()', STABLE)
