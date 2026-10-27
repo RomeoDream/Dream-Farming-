@@ -87,6 +87,11 @@ class EquineProtocolTests(unittest.TestCase):
         self.assertIn('pendingWater=0;pendingKind="WATER";transferSeq=0;', STABLE)
         self.assertIn('herdRoot=NULL_KEY', STABLE)
 
+    def test_status_exposes_pending_transfer_diagnostics(self):
+        self.assertIn(' | Pending "+pendingKind+', STABLE)
+        self.assertIn(' | Retry "+(string)transferAttempts+', STABLE)
+        self.assertIn('pendingWater>0?llGetUnixTime()-pendingStarted:0', STABLE)
+
     def test_dialog_limits(self):
         dialogs = re.findall(r'llDialog\(who,[^\n]*\[([^\]]+)\],CHANNEL\)', STABLE)
         self.assertEqual(len(dialogs), 2, "Both main and settings dialogs must be checked")
