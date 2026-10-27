@@ -61,7 +61,7 @@ save(){
 }
 load(){
  string value=llLinksetDataRead(PREFIX+"stalls");
- if(value==""){save();return;}
+ if(value==""){transferStream=(string)llGenerateKey();save();return;}
  stalls=clampInt((integer)value,1,8);
  hay=clampInt((integer)llLinksetDataRead(PREFIX+"hay"),0,MAX_STOCK);
  water=clampInt((integer)llLinksetDataRead(PREFIX+"water"),0,MAX_STOCK);
@@ -125,8 +125,8 @@ default {
   }
   if(id!=llGetOwner())return;
   if(message=="Status"){if(herdRoot!=NULL_KEY && !validHerdRoot(herdRoot))llOwnerSay("Warning: saved Herd object is no longer nearby or same-owner.");report(id);menu(id);return;}
-  if(message=="Set Herd"){pendingHerd=TRUE;llTextBox(id,"Paste the Herd root object UUID. Must belong to the same owner and region.",CHANNEL);return;}
-  if(pendingHerd){pendingHerd=FALSE;if(validUUID(message) && validHerdRoot((key)message)){key nextHerd=(key)message;if(nextHerd!=herdRoot){assigned=[];pendingAnimal="";pendingNonce="";pendingUntil=0;careEnabled=FALSE;llOwnerSay("Herd changed: old stall assignments cleared and care monitoring paused. Reverify animals against the new Herd.");}herdRoot=nextHerd;save();llOwnerSay("Same-owner, nearby Herd target saved. Verify each equine before assignment.");}else llOwnerSay("Herd target must be an existing same-owner object within 96 m.");menu(id);return;}
+  if(message=="Set Herd"){if(pendingWater>0){llOwnerSay("Cannot change Herd while a water delivery is pending.");menu(id);return;}pendingHerd=TRUE;llTextBox(id,"Paste the Herd root object UUID. Must belong to the same owner and region.",CHANNEL);return;}
+  if(pendingHerd){pendingHerd=FALSE;if(pendingWater>0){llOwnerSay("Finish the pending water delivery before changing Herd.");menu(id);return;}if(validUUID(message) && validHerdRoot((key)message)){key nextHerd=(key)message;if(nextHerd!=herdRoot){assigned=[];pendingAnimal="";pendingNonce="";pendingUntil=0;careEnabled=FALSE;llOwnerSay("Herd changed: old stall assignments cleared and care monitoring paused. Reverify animals against the new Herd.");}herdRoot=nextHerd;save();llOwnerSay("Same-owner, nearby Herd target saved. Verify each equine before assignment.");}else llOwnerSay("Herd target must be an existing same-owner object within 96 m.");menu(id);return;}
   if(message=="Assign UUID"){if(pendingAnimal!=""){llOwnerSay("Wait for the previous verification to finish.");return;}pendingAssignment=TRUE;llTextBox(id,"Paste an existing Herd animal UUID. This is a local assignment, not yet verified against the Herd controller.",CHANNEL);return;}
   if(pendingAssignment && !validUUID(message)){pendingAssignment=FALSE;llOwnerSay("Invalid animal UUID; no assignment saved.");menu(id);return;}
   if(pendingAssignment && validUUID(message)){
