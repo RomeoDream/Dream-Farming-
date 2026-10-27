@@ -136,6 +136,9 @@ default {
  touch_start(integer count){key who=llDetectedKey(0);if(who==llGetOwner())menu(who);}
  listen(integer channel,string name,key id,string message){
   if(channel==NET){
+   if(llStringLength(message)>1000 || llJsonValueType(message,[])!=JSON_OBJECT)return;
+   if(llJsonValueType(message,["seq"])!=JSON_NUMBER || llJsonValueType(message,["qty"])!=JSON_NUMBER)return;
+   if((float)llJsonGetValue(message,["seq"])!=(float)transferSeq || (float)llJsonGetValue(message,["qty"])!=(float)pendingWater)return;
    if(pendingWater<=0 || id!=herdRoot || llGetOwnerKey(id)!=llGetOwner() || !validHerdRoot(herdRoot))return;
    if(llJsonGetValue(message,["v"])!="1" || llJsonGetValue(message,["op"])!="ACK" || llJsonGetValue(message,["target"])!=(string)llGetKey())return;
    if(llJsonGetValue(message,["stream"])!=transferStream || (integer)llJsonGetValue(message,["seq"])!=transferSeq || (integer)llJsonGetValue(message,["qty"])!=pendingWater || llJsonGetValue(message,["kind"])!=pendingKind)return;
@@ -144,6 +147,7 @@ default {
    string delivered=pendingKind;pendingWater=0;pendingKind="WATER";pendingStarted=0;transferAttempts=0;save();llOwnerSay("Herd acknowledged "+delivered+" delivery; stable stock debited once.");return;
   }
   if(channel==herdChannel){
+   if(llStringLength(message)>1000 || llJsonValueType(message,[])!=JSON_OBJECT)return;
    if(pendingAnimal=="" || pendingNonce=="")return;
    if(id!=herdRoot || llGetOwnerKey(id)!=llGetOwner() || !validHerdRoot(herdRoot) || llGetUnixTime()>pendingUntil)return;
    if(llJsonGetValue(message,["type"])!="EQUINE_RESULT" || llJsonGetValue(message,["nonce"])!=pendingNonce || llJsonGetValue(message,["animal"])!=pendingAnimal)return;
@@ -168,8 +172,8 @@ default {
    menu(id);return;
   }
   if(message=="Send water" || message=="Send feed"){
-   if(pendingWater>0){llOwnerSay("Previous water delivery still pending.");menu(id);return;}
-   if(!transferInRange()){llOwnerSay("Water delivery requires the same-owner Herd within 8 m.");menu(id);return;}
+   if(pendingWater>0){llOwnerSay("Previous supply delivery still pending.");menu(id);return;}
+   if(!transferInRange()){llOwnerSay("Supply delivery requires the same-owner Herd within 8 m.");menu(id);return;}
    string kind="WATER";if(message=="Send feed")kind="FEED";
    if((kind=="WATER" && water<10) || (kind=="FEED" && hay<10)){llOwnerSay("At least 10 units of selected supply required.");menu(id);return;}
    if(transferSeq>=999999999){llOwnerSay("Transfer sequence exhausted; manual migration required.");menu(id);return;}
