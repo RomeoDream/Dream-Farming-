@@ -59,6 +59,13 @@ class EquineProtocolTests(unittest.TestCase):
         ):
             self.assertIn(fragment, STABLE)
 
+    def test_ack_payload_is_strictly_validated(self):
+        self.assertIn('llJsonValueType(message,[])!=JSON_OBJECT', STABLE)
+        self.assertIn('llJsonValueType(message,["seq"])!=JSON_NUMBER', STABLE)
+        self.assertIn('llJsonValueType(message,["qty"])!=JSON_NUMBER', STABLE)
+        self.assertIn('(float)llJsonGetValue(message,["seq"])!=(float)transferSeq', STABLE)
+        self.assertIn('(float)llJsonGetValue(message,["qty"])!=(float)pendingWater', STABLE)
+
     def test_transfer_range_is_enforced_on_retries(self):
         self.assertIn('integer transferInRange()', STABLE)
         self.assertIn('<=8.0', STABLE)
