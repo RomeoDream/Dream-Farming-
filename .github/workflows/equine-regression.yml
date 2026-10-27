@@ -24,3 +24,5 @@ jobs:
         run: python tools/build.py --check
       - name: Run equine source regression tests
         run: python -m unittest discover -s tests -p 'test_equine_*.py' -v
+      - name: Run manure and welfare chain
+        run: python -m unittest discover -s tests -p 'test_stable_chain.py' -v

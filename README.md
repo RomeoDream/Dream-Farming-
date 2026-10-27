@@ -1,3 +1,5 @@
+> **SL test candidate:** Start with [SL_TEST_CANDIDATE.md](docs/SL_TEST_CANDIDATE.md). The active Stable is now generated in `lsl/`, alongside the optional CloudSync companion. Use the downloadable workflow artifact or run `python tools/package_beta.py` for the complete test package. This is controlled-test readiness, not production certification.
+
 # Dream Farming
 
 **Second Life farming simulation for Romeo Dream — 0.3.0 field operations alpha.**

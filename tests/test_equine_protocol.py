@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-STABLE = (ROOT / "experimental/DreamFarm_EquineStable.lsl").read_text()
+STABLE = (ROOT / "src/DreamFarm_EquineStable.lsl").read_text()
 HERD = (ROOT / "src/DreamFarm_Herd.lsl").read_text()
 
 
@@ -54,7 +54,7 @@ class EquineProtocolTests(unittest.TestCase):
             'if(message=="Send feed")kind="FEED"',
             'llJsonGetValue(message,["op"])!="ACK"',
             'if(pendingKind=="WATER")water-=pendingWater;',
-            'else hay-=pendingWater;',
+            'else if(pendingKind=="FEED")hay-=pendingWater;',
             'if(pendingWater>0)',
         ):
             self.assertIn(fragment, STABLE)

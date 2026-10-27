@@ -147,7 +147,7 @@ list buttons(string p)
     if(p=="settings")return ["Destination","Pause","Resume","Normal","Demo x60","Sandbox supplies","Back","Close"];
     if(p=="animals"){list b=[];integer i;for(i=0;i<countAnimals();++i)b+=["Animal "+(string)(i+1)];return b+["Back","Close"];}
     if(p=="manage")return ["Cow","Bull","Hen","Rooster","Ewe","Ram","Sow","Boar","Equines","Remove dead","Back","Close"];
-    if(p=="equines")return ["Mare","Stallion","Jenny","Jack","Back","Close"];
+    if(p=="equines")return ["Mare","Stallion","Jenny","Jack","Animal IDs","Back","Close"];
     if(p=="material")return materialButtons(iv(19));
     if(p=="export")return ["Select material","Send 1","Send 10","Back","Close"];
     return ["Animals","Inventory","Breed","Rename","Muck out","Treat","Grazing","Export","Manage","Settings","Close"];
@@ -175,6 +175,10 @@ string action(string cmd)
     {if(totalStock()+700.0>1000000.0)return "Supplies full.";alter("FEED",200.0);alter("WATER",400.0);alter("BEDDING",50.0);alter("MEDICINE",50.0);return "SANDBOX feed, water, bedding and medicine delivered.";}
     if(cmd=="Remove dead")
     {list herd=[];integer k;for(k=0;k<countAnimals();++k){list a=animal(k);if(llList2Integer(a,15))herd+=[llList2Json(JSON_ARRAY,a)];}put(9,[llList2Json(JSON_ARRAY,herd)]);put(10,[0]);return "Dead records removed from this active pen. No meat or economic credit created.";}
+    if(cmd=="Animal IDs"){
+        integer k;for(k=0;k<countAnimals();++k){list a=animal(k);llOwnerSay(llList2String(a,1)+" | "+llList2String(a,0));}
+        return "Animal identities printed to owner chat.";
+    }
     if(cmd=="Inventory")return bagReport();
     if(cmd=="Muck out")
     {if(stock("BEDDING")<2.0 || stock("BROWNS")>999998.0)return "Need two bedding units and storage room.";alter("BEDDING",-2.0);alter("BROWNS",2.0);put(15,[100.0]);return "Pen cleaned; used bedding retained.";}
@@ -202,7 +206,8 @@ string action(string cmd)
 }
 integer credit(string kind,integer qty)
 {if(llListFindList(["FEED","WATER","BEDDING","GRASS","MEDICINE"],[kind])<0 || stock(kind)+qty>1000000.0)return FALSE;alter(kind,qty);return TRUE;}
-string visual(){return llList2Json(JSON_OBJECT,["kind",KIND,"animals",countAnimals(),"selected",iv(10),"fault",fault]);}
+integer livingAnimals(){integer n=0;integer i;for(i=0;i<countAnimals();++i)if(llList2Integer(animal(i),15))++n;return n;}
+string visual(){return llList2Json(JSON_OBJECT,["kind",KIND,"animals",countAnimals(),"living",livingAnimals(),"selected",iv(10),"fault",fault]);}
 extraBoot(){llListen(-918248,"",NULL_KEY,"");}
 integer extraListen(integer c,key who,string msg)
 {
@@ -214,14 +219,15 @@ integer extraListen(integer c,key who,string msg)
     string id=llJsonGetValue(msg,["animal"]);
     string nonce=llJsonGetValue(msg,["nonce"]);
     if(llStringLength(nonce)>64 || llStringLength(nonce)<8)return TRUE;
+    list welfare=["health",0.0,"hunger",0.0,"thirst",0.0,"stress",0.0];
     integer i;integer found=FALSE;
     for(i=0;i<countAnimals();++i)
     {
         list a=animal(i);
         integer sp=llList2Integer(a,2);
-        if(llList2String(a,0)==id && (sp==4 || sp==5) && llList2Integer(a,15))found=TRUE;
+        if(!fault && llList2String(a,0)==id && (sp==4 || sp==5) && llList2Integer(a,15)){found=TRUE;welfare=["health",llList2Float(a,6),"hunger",llList2Float(a,7),"thirst",llList2Float(a,8),"stress",llList2Float(a,9)];}
     }
-    llRegionSayTo(who,-918248,llList2Json(JSON_OBJECT,["type","EQUINE_RESULT","animal",id,"nonce",nonce,"valid",found]));
+    llRegionSayTo(who,-918248,llList2Json(JSON_OBJECT,["type","EQUINE_RESULT","animal",id,"nonce",nonce,"valid",found]+welfare));
     return TRUE;
 }
 extraLink(integer sender,integer number,string text,key id){}
