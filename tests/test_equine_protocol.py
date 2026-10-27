@@ -43,15 +43,18 @@ class EquineProtocolTests(unittest.TestCase):
         self.assertIn("llList2Integer(a,15)", HERD)
         self.assertIn("llGetOwnerKey(who)!=llGetOwner()", HERD)
 
-    def test_water_delivery_uses_durable_receipts(self):
+    def test_feed_and_water_deliveries_use_durable_receipts(self):
         for fragment in (
             'llLinksetDataWrite(PREFIX+"pendingWater"',
             'llLinksetDataWrite(PREFIX+"transferStream"',
             'llLinksetDataWrite(PREFIX+"transferSeq"',
             '"op","LOAD"',
-            '"kind","WATER"',
+            '"kind",pendingKind',
+            'llLinksetDataWrite(PREFIX+"pendingKind"',
+            'if(message=="Send feed")kind="FEED"',
             'llJsonGetValue(message,["op"])!="ACK"',
-            'water-=pendingWater;pendingWater=0;save();',
+            'if(pendingKind=="WATER")water-=pendingWater;',
+            'else hay-=pendingWater;',
             'if(pendingWater>0)',
         ):
             self.assertIn(fragment, STABLE)
@@ -59,7 +62,7 @@ class EquineProtocolTests(unittest.TestCase):
     def test_owner_transfer_clears_state(self):
         self.assertIn('llLinksetDataWrite(PREFIX+"owner"', STABLE)
         self.assertIn('savedOwner!=(string)llGetOwner()', STABLE)
-        self.assertIn('pendingWater=0;transferSeq=0;', STABLE)
+        self.assertIn('pendingWater=0;pendingKind="WATER";transferSeq=0;', STABLE)
         self.assertIn('herdRoot=NULL_KEY', STABLE)
 
     def test_dialog_limits(self):
