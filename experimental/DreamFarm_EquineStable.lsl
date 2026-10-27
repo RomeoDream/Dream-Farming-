@@ -45,6 +45,12 @@ integer validHerdRoot(key target){
  if(llList2Key(details,0)!=llGetOwner())return FALSE;
  return llVecDist(llGetPos(),llList2Vector(details,1))<=96.0;
 }
+integer transferInRange(){
+ if(!validHerdRoot(herdRoot))return FALSE;
+ list pos=llGetObjectDetails(herdRoot,[OBJECT_POS]);
+ if(llGetListLength(pos)!=1)return FALSE;
+ return llVecDist(llGetPos(),llList2Vector(pos,0))<=8.0;
+}
 save(){
  llLinksetDataWrite(PREFIX+"owner",(string)llGetOwner());
  llLinksetDataWrite(PREFIX+"stalls",(string)stalls);
@@ -163,7 +169,7 @@ default {
   }
   if(message=="Send water" || message=="Send feed"){
    if(pendingWater>0){llOwnerSay("Previous water delivery still pending.");menu(id);return;}
-   if(!validHerdRoot(herdRoot) || llVecDist(llGetPos(),llList2Vector(llGetObjectDetails(herdRoot,[OBJECT_POS]),0))>8.0){llOwnerSay("Water delivery requires the same-owner Herd within 8 m.");menu(id);return;}
+   if(!transferInRange()){llOwnerSay("Water delivery requires the same-owner Herd within 8 m.");menu(id);return;}
    string kind="WATER";if(message=="Send feed")kind="FEED";
    if((kind=="WATER" && water<10) || (kind=="FEED" && hay<10)){llOwnerSay("At least 10 units of selected supply required.");menu(id);return;}
    if(transferSeq>=999999999){llOwnerSay("Transfer sequence exhausted; manual migration required.");menu(id);return;}
@@ -194,7 +200,7 @@ default {
  }
  timer(){
   if(careEnabled && !validHerdRoot(herdRoot)){careEnabled=FALSE;save();llOwnerSay("Stable monitoring paused: linked Herd is missing, too far away, or has a different owner.");}
-  if(pendingWater>0 && validHerdRoot(herdRoot) && llGetUnixTime()-lastWaterSend>=10){
+  if(pendingWater>0 && transferInRange() && llGetUnixTime()-lastWaterSend>=10){
    lastWaterSend=llGetUnixTime();
    if(transferAttempts<1000000)transferAttempts+=1;
    if(transferAttempts==1 || (transferAttempts%30)==0)llOwnerSay("Pending "+pendingKind+" delivery: attempt "+(string)transferAttempts+". No stock debited until ACK.");
