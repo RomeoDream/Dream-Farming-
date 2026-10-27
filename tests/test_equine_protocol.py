@@ -64,7 +64,7 @@ class EquineProtocolTests(unittest.TestCase):
 
     def test_dialog_limits(self):
         dialogs = re.findall(r'llDialog\(who,[^\n]*\[([^\]]+)\],CHANNEL\)', STABLE)
-        self.assertTrue(dialogs)
+        self.assertEqual(len(dialogs), 2, "Both main and settings dialogs must be checked")
         for buttons in dialogs:
             self.assertLessEqual(len(re.findall(r'"[^"]+"', buttons)), 12)
 
