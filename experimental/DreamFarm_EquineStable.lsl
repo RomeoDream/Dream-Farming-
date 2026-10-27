@@ -69,6 +69,13 @@ load(){
  string raw=llLinksetDataRead(PREFIX+"assigned");
  if(llJsonValueType(raw,[])==JSON_ARRAY)assigned=llJson2List(raw);
  else assigned=[];
+ // Older builds permitted unverified UUIDs; invalidate those assignments once.
+ if(llLinksetDataRead(PREFIX+"verifiedAssignments")!="1"){
+  assigned=[];
+  careEnabled=FALSE;
+  llLinksetDataWrite(PREFIX+"verifiedAssignments","1");
+  save();
+ }
  if(llGetListLength(assigned)>stalls)assigned=llList2List(assigned,0,stalls-1);
 }
 report(key who){
