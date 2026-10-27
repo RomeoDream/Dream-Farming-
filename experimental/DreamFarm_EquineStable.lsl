@@ -10,6 +10,7 @@ integer bedding=0;
 integer manure=0;
 integer MAX_STOCK=10000;
 integer pendingAssignment=FALSE;
+integer menuPage=0;
 integer lastCare=0;
 integer careEnabled=FALSE;
 // Local stable supply quantities are observational until an acknowledged transfer exists.
@@ -102,7 +103,8 @@ report(key who){
  llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Pending water "+(string)pendingWater+" | Herd "+(string)herdRoot+" | Manure source "+(string)stableManureEnabled+" | Assignments "+llList2CSV(assigned));
 }
 menu(key who){
- llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Set Herd","Release last","Send water","Care on","Care off","Close"],CHANNEL);
+ if(menuPage==1)llDialog(who,"Stable settings",["Release last","Stalls +1","Stalls -1","Back","Close"],CHANNEL);
+ else llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Set Herd","More","Send water","Care on","Care off","Close"],CHANNEL);
 }
 default {
  state_entry(){
@@ -132,6 +134,8 @@ default {
    pendingAnimal="";pendingNonce="";pendingUntil=0;return;
   }
   if(id!=llGetOwner())return;
+  if(message=="More"){menuPage=1;menu(id);return;}
+  if(message=="Back"){menuPage=0;menu(id);return;}
   if(message=="Status"){if(herdRoot!=NULL_KEY && !validHerdRoot(herdRoot))llOwnerSay("Warning: saved Herd object is no longer nearby or same-owner.");report(id);menu(id);return;}
   if(message=="Set Herd"){if(pendingWater>0){llOwnerSay("Cannot change Herd while a water delivery is pending.");menu(id);return;}pendingHerd=TRUE;llTextBox(id,"Paste the Herd root object UUID. Must belong to the same owner and region.",CHANNEL);return;}
   if(pendingHerd){pendingHerd=FALSE;if(pendingWater>0){llOwnerSay("Finish the pending water delivery before changing Herd.");menu(id);return;}if(validUUID(message) && validHerdRoot((key)message)){key nextHerd=(key)message;if(nextHerd!=herdRoot){assigned=[];pendingAnimal="";pendingNonce="";pendingUntil=0;careEnabled=FALSE;llOwnerSay("Herd changed: old stall assignments cleared and care monitoring paused. Reverify animals against the new Herd.");}herdRoot=nextHerd;save();llOwnerSay("Same-owner, nearby Herd target saved. Verify each equine before assignment.");}else llOwnerSay("Herd target must be an existing same-owner object within 96 m.");menu(id);return;}
