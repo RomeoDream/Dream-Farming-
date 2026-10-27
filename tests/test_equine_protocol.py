@@ -56,6 +56,12 @@ class EquineProtocolTests(unittest.TestCase):
         ):
             self.assertIn(fragment, STABLE)
 
+    def test_owner_transfer_clears_state(self):
+        self.assertIn('llLinksetDataWrite(PREFIX+"owner"', STABLE)
+        self.assertIn('savedOwner!=(string)llGetOwner()', STABLE)
+        self.assertIn('pendingWater=0;transferSeq=0;', STABLE)
+        self.assertIn('herdRoot=NULL_KEY', STABLE)
+
     def test_dialog_limits(self):
         dialogs = re.findall(r'llDialog\(who,[^\n]*\[([^\]]+)\],CHANNEL\)', STABLE)
         self.assertTrue(dialogs)
