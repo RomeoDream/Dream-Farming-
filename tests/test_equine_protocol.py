@@ -36,7 +36,7 @@ class EquineProtocolTests(unittest.TestCase):
 
     def test_legacy_unverified_assignments_are_cleared(self):
         self.assertIn('llLinksetDataRead(PREFIX+"verifiedAssignments")!="1"', STABLE)
-        self.assertIn('llLinksetDataWrite(PREFIX+"verifiedAssignments","1")', STABLE)
+        self.assertNotIn('llLinksetDataWrite(PREFIX+"verifiedAssignments"', STABLE)
 
     def test_herd_verifies_species_and_life(self):
         self.assertIn("(sp==4 || sp==5)", HERD)
@@ -45,12 +45,12 @@ class EquineProtocolTests(unittest.TestCase):
 
     def test_feed_and_water_deliveries_use_durable_receipts(self):
         for fragment in (
-            'llLinksetDataWrite(PREFIX+"pendingWater"',
-            'llLinksetDataWrite(PREFIX+"transferStream"',
-            'llLinksetDataWrite(PREFIX+"transferSeq"',
+            'pendingWater',
+            'transferStream',
+            'transferSeq',
             '"op","LOAD"',
             '"kind",pendingKind',
-            'llLinksetDataWrite(PREFIX+"pendingKind"',
+            'pendingKind',
             'if(message=="Send feed")kind="FEED"',
             'llJsonGetValue(message,["op"])!="ACK"',
             'if(pendingKind=="WATER")water-=pendingWater;',
@@ -73,24 +73,24 @@ class EquineProtocolTests(unittest.TestCase):
 
     def test_pending_delivery_retry_audit_is_persistent(self):
         for fragment in (
-            'llLinksetDataWrite(PREFIX+"pendingStarted"',
-            'llLinksetDataWrite(PREFIX+"transferAttempts"',
+            'pendingStarted',
+            'transferAttempts',
             'pendingStarted=llGetUnixTime()',
             'transferAttempts+=1',
-            'pendingStarted=0;transferAttempts=0;save();',
+            'pendingStarted=0;transferAttempts=0;if(!save())return;',
         ):
             self.assertIn(fragment, STABLE)
 
-    def test_owner_transfer_clears_state(self):
-        self.assertIn('llLinksetDataWrite(PREFIX+"owner"', STABLE)
-        self.assertIn('savedOwner!=(string)llGetOwner()', STABLE)
-        self.assertIn('pendingWater=0;pendingKind="WATER";transferSeq=0;', STABLE)
-        self.assertIn('herdRoot=NULL_KEY', STABLE)
+    def test_owner_and_object_identity_are_bound_to_snapshot(self):
+        self.assertIn('llLinksetDataWrite(SNAPSHOT,next)', STABLE)
+        self.assertIn('llList2String(llJson2List(raw),1)!=(string)llGetOwner()', STABLE)
+        self.assertIn('llList2String(llJson2List(raw),2)!=(string)llGetKey()', STABLE)
+        self.assertIn('if(durable!="")restore(durable)', STABLE)
 
     def test_status_exposes_pending_transfer_diagnostics(self):
         self.assertIn(' | Pending "+pendingKind+', STABLE)
         self.assertIn(' | Retry "+(string)transferAttempts+', STABLE)
-        self.assertIn('pendingWater>0?llGetUnixTime()-pendingStarted:0', STABLE)
+        self.assertIn('if(pendingWater>0)age=llGetUnixTime()-pendingStarted', STABLE)
 
     def test_dialog_limits(self):
         dialogs = re.findall(r'llDialog\(who,[^\n]*\[([^\]]+)\],CHANNEL\)', STABLE)

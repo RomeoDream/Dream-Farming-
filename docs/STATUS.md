@@ -1,3 +1,13 @@
+# Beta hardening update — 2026-10-26
+
+The equine hardening batch replaces multi-key Stable writes with validated atomic snapshots, locks copied/other-owner records, preserves pending transactions through save failures, removes an invalid LSL ternary expression, and fixes horse/donkey zero-litter births. Eleven new runtime tests exercise the actual Stable and Herd scripts. The equine workflow now installs the compiler/runtime dependency.
+
+Validation: generated-file check and all **163 local tests pass** with Lummao 0.5.2. The previous head (`22e43de`) had one failing brittle source assertion; it is replaced with snapshot identity/rollback checks and behavioral tests. GitHub Actions results for this batch must be checked on its commit. Second Life Mono compilation, memory and in-world tests remain outstanding. Cloudflare deployment and existing production records were not changed.
+
+The 100-stage program remains a target; this batch does not qualify the complete beta. Stable manure export, complete welfare synchronization, server-authoritative inventory and live integration remain blockers. Details: [equine transfers](EQUINE_WATER_TRANSFER.md).
+
+---
+
 # Status — 2026-10-25
 
 Version **0.3.0 field operations alpha**. Project and creator credit: **Romeo Dream**.

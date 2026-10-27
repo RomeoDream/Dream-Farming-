@@ -119,7 +119,7 @@ tick(float dt)
                     if(sp==1 && llList2Integer(a,3)==1)alter("EGGS",low(0.8*welfare*dt,1000000.0-stock("EGGS")));
                     if(sp==2)alter("WOOL",low(0.06*welfare*dt,1000000.0-stock("WOOL")));
                 }
-                float due=llList2Float(a,10);integer litter=llList2Integer([1,4,2,4],sp);
+                float due=llList2Float(a,10);integer litter=llList2Integer([1,4,2,4,1,1],sp);
                 if(due>=0.0 && fv(6)+dt>=due && countAnimals()+litter<=8 && iv(12)<=1000000-litter)
                 {
                     integer k;for(k=0;k<litter;++k)
