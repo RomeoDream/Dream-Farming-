@@ -63,7 +63,7 @@ export default {
       try { data = await readJson(request); } catch { return fail("invalid_request", 400); }
       if (!validId(data.farm_id) || !validId(data.object_id)) return fail("invalid_input", 400);
       const bytes = crypto.getRandomValues(new Uint8Array(32));
-      const credential = btoa(String.fromCharCode(...bytes)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+      const credential = encode(bytes);
       const hash = await sha256(credential);
       const result = await env.DB.prepare("UPDATE farm_objects SET credential_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND farm_id=? AND revoked=0").bind(hash, data.object_id, data.farm_id).run();
       if (result.meta.changes !== 1) return fail("object_not_found", 404);
