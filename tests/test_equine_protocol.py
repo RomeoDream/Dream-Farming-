@@ -59,6 +59,11 @@ class EquineProtocolTests(unittest.TestCase):
         ):
             self.assertIn(fragment, STABLE)
 
+    def test_transfer_range_is_enforced_on_retries(self):
+        self.assertIn('integer transferInRange()', STABLE)
+        self.assertIn('<=8.0', STABLE)
+        self.assertIn('if(pendingWater>0 && transferInRange()', STABLE)
+
     def test_pending_delivery_retry_audit_is_persistent(self):
         for fragment in (
             'llLinksetDataWrite(PREFIX+"pendingStarted"',
