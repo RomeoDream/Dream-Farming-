@@ -43,6 +43,19 @@ class EquineProtocolTests(unittest.TestCase):
         self.assertIn("llList2Integer(a,15)", HERD)
         self.assertIn("llGetOwnerKey(who)!=llGetOwner()", HERD)
 
+    def test_water_delivery_uses_durable_receipts(self):
+        for fragment in (
+            'llLinksetDataWrite(PREFIX+"pendingWater"',
+            'llLinksetDataWrite(PREFIX+"transferStream"',
+            'llLinksetDataWrite(PREFIX+"transferSeq"',
+            '"op","LOAD"',
+            '"kind","WATER"',
+            'llJsonGetValue(message,["op"])!="ACK"',
+            'water-=pendingWater;pendingWater=0;save();',
+            'if(pendingWater>0)',
+        ):
+            self.assertIn(fragment, STABLE)
+
     def test_dialog_limits(self):
         dialogs = re.findall(r'llDialog\(who,[^\n]*\[([^\]]+)\],CHANNEL\)', STABLE)
         self.assertTrue(dialogs)
