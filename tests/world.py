@@ -80,6 +80,9 @@ class World:
             if who in self.net.worlds: return [self.net.worlds[who].position]
             if who in self.positions: return [self.positions[who]]
             return []
+        if request == [6,3]:
+            w=self.net.worlds.get(who)
+            return [w.owner,w.position] if w else []
         if request == [7]: return [self.group]
         if request == [3,5]:
             w=self.net.worlds.get(who)
@@ -101,6 +104,7 @@ class World:
 
     async def boot(self):
         path = ROOT / 'lsl' / ('DreamFarm_' + self.module + '.lsl')
+        if self.module == 'EquineStable': path = ROOT / 'experimental/DreamFarm_EquineStable.lsl'
         if self.module == 'GardenReference': path = ROOT / 'tests/fixtures/DreamGarden_Botany.reference.lsl'
         if self.module == 'GardenManure': path = ROOT / 'tests/fixtures/DreamGarden_FarmManure.v04.lsl'
         if self.module == 'BankReference': path = ROOT / 'tests/fixtures/Dream_Bill_Terminal.reference.lsl'
