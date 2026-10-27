@@ -34,6 +34,10 @@ class EquineProtocolTests(unittest.TestCase):
         self.assertIn("if(nextHerd!=herdRoot){assigned=[];", STABLE)
         self.assertIn('careEnabled=FALSE;', STABLE)
 
+    def test_legacy_unverified_assignments_are_cleared(self):
+        self.assertIn('llLinksetDataRead(PREFIX+"verifiedAssignments")!="1"', STABLE)
+        self.assertIn('llLinksetDataWrite(PREFIX+"verifiedAssignments","1")', STABLE)
+
     def test_herd_verifies_species_and_life(self):
         self.assertIn("(sp==4 || sp==5)", HERD)
         self.assertIn("llList2Integer(a,15)", HERD)
