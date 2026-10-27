@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src" / "DreamFarm_Herd.lsl"
 GENERATED = ROOT / "lsl" / "DreamFarm_Herd.lsl"
-STABLE = ROOT / "experimental" / "DreamFarm_EquineStable.lsl"
+STABLE = ROOT / "src" / "DreamFarm_EquineStable.lsl"
 
 
 class EquineSourceTests(unittest.TestCase):

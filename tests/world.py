@@ -61,6 +61,7 @@ class World:
         self.physics = False
         self.motors = {}
         self.permission_requests = []
+        self.http_requests = []
         self.link_names = {2:'DF:Stage:0',3:'DF:Stage:1',4:'DF:Stage:2',5:'DF:Stage:3',6:'DF:Stage:4',7:'DF:Stage:5',8:'Fence',9:'DF:Stage:invalid'}
         self.prim_params = {}
 
@@ -80,6 +81,9 @@ class World:
             if who in self.net.worlds: return [self.net.worlds[who].position]
             if who in self.positions: return [self.positions[who]]
             return []
+        if request == [6,3]:
+            w=self.net.worlds.get(who)
+            return [w.owner,w.position] if w else []
         if request == [7]: return [self.group]
         if request == [3,5]:
             w=self.net.worlds.get(who)
@@ -101,6 +105,7 @@ class World:
 
     async def boot(self):
         path = ROOT / 'lsl' / ('DreamFarm_' + self.module + '.lsl')
+        if self.module == 'EquineStable': path = ROOT / 'lsl/DreamFarm_EquineStable.lsl'
         if self.module == 'GardenReference': path = ROOT / 'tests/fixtures/DreamGarden_Botany.reference.lsl'
         if self.module == 'GardenManure': path = ROOT / 'tests/fixtures/DreamGarden_FarmManure.v04.lsl'
         if self.module == 'BankReference': path = ROOT / 'tests/fixtures/Dream_Bill_Terminal.reference.lsl'
@@ -150,6 +155,17 @@ class World:
             'llUnSit': lambda who: setattr(self,'sitter',NULL),
             'llSetPayPrice': lambda *args: None,
         }
+        if self.module == 'CloudSync':
+            def http_request(url,options,body):
+                rid=lummao.Key(str(uuid.uuid4()));self.http_requests.append((rid,url,options,body));return rid
+            def set_json(raw,path,value):
+                assert len(path)==1
+                data=json.loads(raw)
+                try: data[path[0]]=json.loads(value)
+                except json.JSONDecodeError: data[path[0]]=value
+                return json.dumps(data,separators=(',',':'))
+            mocks['llHTTPRequest']=http_request
+            mocks['llJsonSetValue']=set_json
         if self.module == 'BankReference':
             # Lummao omits this builtin. The unmodified adapter only sets one
             # string member; deliberately reject any unimplemented JSON path.

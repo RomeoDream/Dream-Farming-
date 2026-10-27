@@ -15,7 +15,9 @@ async function readJson(request) {
   if (Number(request.headers.get("content-length") || 0) > 16384) throw new Error("payload_too_large");
   const raw = await request.text();
   if (raw.length > 16384) throw new Error("payload_too_large");
-  return JSON.parse(raw);
+  const value=JSON.parse(raw);
+  if(!value || typeof value!=="object" || Array.isArray(value))throw new Error("invalid_object");
+  return value;
 }
 function validId(s) { return typeof s === "string" && /^[a-zA-Z0-9_-]{1,80}$/.test(s); }
 async function authenticate(request, env) {
@@ -63,7 +65,7 @@ export default {
       try { data = await readJson(request); } catch { return fail("invalid_request", 400); }
       if (!validId(data.farm_id) || !validId(data.object_id)) return fail("invalid_input", 400);
       const bytes = crypto.getRandomValues(new Uint8Array(32));
-      const credential = btoa(String.fromCharCode(...bytes)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+      const credential = encode(bytes);
       const hash = await sha256(credential);
       const result = await env.DB.prepare("UPDATE farm_objects SET credential_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND farm_id=? AND revoked=0").bind(hash, data.object_id, data.farm_id).run();
       if (result.meta.changes !== 1) return fail("object_not_found", 404);
@@ -143,20 +145,26 @@ export default {
       const objectRows=selected
         ? await env.DB.prepare(objectSql).bind(selected).all()
         : await env.DB.prepare(objectSql).all();
+      const fresh=o=>{
+        const stamp=Date.parse(o.updated_at.replace(' ','T')+'Z');
+        return Number.isFinite(stamp) && Date.now()-stamp<=300000 && Date.now()>=stamp;
+      };
       const telemetry=objectRows.results.map(o=>({
         id:o.id,farm_id:o.farm_id,revision:o.revision,revoked:!!o.revoked,
         updated_at:o.updated_at,
         // An unchanged initial record is not evidence of a live simulator connection.
-        reporting:o.revision>0 && !o.revoked
+        reporting:o.revision>0 && !o.revoked && fresh(o),
+        stale:o.revision>0 && !fresh(o)
       }));
       // Opt-in controller telemetry contract: {kind:"livestock"|"field"|"equipment",metrics:{animals,active_crops,equipment}}.
       // Only positive, explicitly reported counts contribute; no guessed values.
       const states=selected
-        ? await env.DB.prepare("SELECT state_json,revision FROM farm_objects WHERE farm_id=? AND revoked=0 AND revision>0 LIMIT 100").bind(selected).all()
-        : await env.DB.prepare("SELECT state_json,revision FROM farm_objects WHERE revoked=0 AND revision>0 LIMIT 100").all();
+        ? await env.DB.prepare("SELECT state_json,revision,updated_at FROM farm_objects WHERE farm_id=? AND revoked=0 AND revision>0 LIMIT 100").bind(selected).all()
+        : await env.DB.prepare("SELECT state_json,revision,updated_at FROM farm_objects WHERE revoked=0 AND revision>0 LIMIT 100").all();
       const totals={animals:null,active_crops:null,equipment:null};
       const mapping={livestock:["animals","animals"],field:["active_crops","active_crops"],equipment:["equipment","equipment"]};
       for(const record of states.results){
+        if(!fresh(record))continue;
         let state;try{state=JSON.parse(record.state_json)}catch{continue}
         const pair=mapping[state?.kind];if(!pair)continue;
         const value=state.metrics?.[pair[1]];

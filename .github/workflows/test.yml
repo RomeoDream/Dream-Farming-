@@ -18,3 +18,12 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt
       - run: python tools/build.py --check
       - run: python -m unittest discover -s tests -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test cloudflare/tests/*.test.mjs
+      - run: python tools/package_beta.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Dream-Farming-SL-Test-Candidate
+          path: dist/Dream-Farming-SL-Test-Candidate.zip

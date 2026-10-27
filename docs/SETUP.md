@@ -10,6 +10,8 @@ Rez test objects on land where you may build, run scripts and enable physics. Pa
 | Tractor | `DreamFarm_Machine` + `DreamFarm_TractorDriver`; optional `DreamFarm_Cab` | Same root; root +X forward; owner sits on root |
 | Storage shed or parked trailer | `DreamFarm_Storage` | One stock ledger; do not add Machine to this linkset |
 | Processing building | `DreamFarm_Processor` | Select a recipe; one batch at a time |
+| Equine stable | `DreamFarm_EquineStable` | Separate root; see SL_TEST_CANDIDATE.md |
+| Cloud telemetry | `DreamFarm_CloudSync` beside Herd, Field or Machine | Optional private per-object token; disabled by default |
 | Individual-animal pen | `DreamFarm_Herd` | Manage adds sandbox adults; maximum eight records |
 | Original cohort pen | `DreamFarm_Livestock` | Optional simpler pen; set species before first boot |
 | Manure pit/tank | `DreamFarm_ManureStore` | Finite containment, leakage, cover and separation |

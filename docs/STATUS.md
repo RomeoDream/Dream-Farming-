@@ -1,3 +1,35 @@
+# Second Life test candidate — 2026-10-26
+
+The local farm and equine path are prepared for controlled SL installation. The active Stable is now `src/DreamFarm_EquineStable.lsl` → generated `lsl/DreamFarm_EquineStable.lsl`; the old experimental controller remains historical. The farm now supplies 19 standalone LSL scripts including the optional CloudSync companion.
+
+Implemented in this candidate:
+
+- Finite Herd → Stable manure delivery, muck-out collection and Stable → Compost export using the existing LOAD/ACK protocol.
+- Atomic v4 Stable snapshots retain stock, destination, reservation and eight non-evicted manure receipts. V3 pending deliveries migrate to their original Herd target. Lost ACK, resets and save failures cannot intentionally credit a second load.
+- Herd care reports rotate through verified Stable equines. Health, hunger, thirst and stress are observations; only Herd consumes supplies and creates manure.
+- Owner-facing Animal IDs and Stable memory/receipt diagnostics support actual installation.
+- Optional root CloudSync sends real living animals, planted fields and equipment counts. It is disabled without a private object token, reads server revisions, backs off, reconciles conflicts, and locks changed object/owner bindings. It never controls local stock.
+- Worker credential rotation fixed; malformed JSON values rejected; dashboard excludes telemetry older than five minutes. Existing production data, bootstrap and artwork are preserved. Worker changes require separate deployment through the existing process.
+- Reproducible ZIP packaging includes all source, generated scripts, tests, checksums, installation guide and a blank simulator result sheet. CI publishes it only after checks pass.
+
+Local validation: **178 Python tests and 6 Worker API tests pass**; all 19 generated LSL scripts compile through Lummao 0.5.2 and generated-file checks pass. Second Life compilation is not claimed.
+
+Validation evidence is the candidate commit's GitHub Actions runs and packaged source manifest. Lummao and SQLite tests are local substitutes for compiler/runtime and database behavior, not evidence of successful Second Life Mono compilation or live D1 deployment.
+
+**Next gate is owner-run SL testing:** [installation and test order](SL_TEST_CANDIDATE.md). Memory at eight animals/full receipt tables, physical tractor behavior, real timers/HTTP, region restarts, meshes and live Garden/TXAGO/banking need recorded simulator results. Authoritative cross-owner inventory, riding/hauling and finished animal meshes are outside this local test candidate. The 100-stage program is not claimed complete.
+
+---
+
+# Beta hardening update — 2026-10-26
+
+The equine hardening batch replaces multi-key Stable writes with validated atomic snapshots, locks copied/other-owner records, preserves pending transactions through save failures, removes an invalid LSL ternary expression, and fixes horse/donkey zero-litter births. Eleven new runtime tests exercise the actual Stable and Herd scripts. The equine workflow now installs the compiler/runtime dependency.
+
+Validation: generated-file check and all **163 local tests pass** with Lummao 0.5.2. The previous head (`22e43de`) had one failing brittle source assertion; it is replaced with snapshot identity/rollback checks and behavioral tests. GitHub Actions results for this batch must be checked on its commit. Second Life Mono compilation, memory and in-world tests remain outstanding. Cloudflare deployment and existing production records were not changed.
+
+The 100-stage program remains a target; this batch does not qualify the complete beta. Stable manure export, complete welfare synchronization, server-authoritative inventory and live integration remain blockers. Details: [equine transfers](EQUINE_WATER_TRANSFER.md).
+
+---
+
 # Status — 2026-10-25
 
 Version **0.3.0 field operations alpha**. Project and creator credit: **Romeo Dream**.

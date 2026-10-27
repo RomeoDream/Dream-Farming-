@@ -17,8 +17,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+      - name: Install LSL compiler and runtime
+        run: python -m pip install -r requirements-dev.txt
       - name: Verify generated LSL
         run: python tools/build.py --check
       - name: Run equine source regression tests
         run: python -m unittest discover -s tests -p 'test_equine_*.py' -v
+      - name: Run manure and welfare chain
+        run: python -m unittest discover -s tests -p 'test_stable_chain.py' -v
