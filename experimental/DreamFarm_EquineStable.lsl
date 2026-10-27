@@ -1,4 +1,4 @@
-// Dream Farming Equine Stable — experimental v0.2
+// Dream Farming Equine Stable — experimental integration alpha
 // Persistent local care inventory and stall assignments. No external transfers yet.
 // Linkset data persists across script resets; duplicate objects duplicate their inventory.
 integer CHANNEL=-918247;
@@ -12,10 +12,12 @@ integer MAX_STOCK=10000;
 integer pendingAssignment=FALSE;
 integer lastCare=0;
 integer careEnabled=FALSE;
-integer careAccountingMode=0; // 0=display-only stable supplies; Herd controls animal welfare.
+// Local stable supply quantities are observational until an acknowledged transfer exists.
+integer careAccountingMode=0;
 integer lastSupplyAudit=0;
 integer collectedManure=0;
-integer stableManureEnabled=FALSE; // Off by default: Herd already produces manure.
+// Stable never creates manure: Herd is authoritative.
+integer stableManureEnabled=FALSE;
 key herdRoot=NULL_KEY;
 integer herdChannel=-918248;
 integer pendingHerd=FALSE;
@@ -89,7 +91,7 @@ default {
  listen(integer channel,string name,key id,string message){
   if(channel==herdChannel){
    if(pendingAnimal=="" || pendingNonce=="")return;
-   if(id!=herdRoot || llGetOwnerKey(id)!=llGetOwner() || llGetUnixTime()>pendingUntil)return;
+   if(id!=herdRoot || llGetOwnerKey(id)!=llGetOwner() || !validHerdRoot(herdRoot) || llGetUnixTime()>pendingUntil)return;
    if(llJsonGetValue(message,["type"])!="EQUINE_RESULT" || llJsonGetValue(message,["nonce"])!=pendingNonce || llJsonGetValue(message,["animal"])!=pendingAnimal)return;
    if(llJsonGetValue(message,["valid"])=="1" && llListFindList(assigned,[pendingAnimal])<0 && llGetListLength(assigned)<stalls){assigned += [pendingAnimal];save();llOwnerSay("Verified horse/donkey assigned to stable.");}
    else llOwnerSay("Herd rejected animal or stable is full.");
