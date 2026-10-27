@@ -42,6 +42,7 @@ integer validHerdRoot(key target){
  return llVecDist(llGetPos(),llList2Vector(details,1))<=96.0;
 }
 save(){
+ llLinksetDataWrite(PREFIX+"owner",(string)llGetOwner());
  llLinksetDataWrite(PREFIX+"stalls",(string)stalls);
  llLinksetDataWrite(PREFIX+"hay",(string)hay);
  llLinksetDataWrite(PREFIX+"water",(string)water);
@@ -62,6 +63,13 @@ save(){
 load(){
  string value=llLinksetDataRead(PREFIX+"stalls");
  if(value==""){transferStream=(string)llGenerateKey();save();return;}
+ string savedOwner=llLinksetDataRead(PREFIX+"owner");
+ if(savedOwner!="" && savedOwner!=(string)llGetOwner()){
+  stalls=4;hay=0;water=0;bedding=0;manure=0;collectedManure=0;
+  assigned=[];careEnabled=FALSE;herdRoot=NULL_KEY;pendingWater=0;transferSeq=0;
+  transferStream=(string)llGenerateKey();lastCare=0;lastSupplyAudit=0;
+  save();llOwnerSay("Ownership changed: previous owner stable records and credentials were cleared.");return;
+ }
  stalls=clampInt((integer)value,1,8);
  hay=clampInt((integer)llLinksetDataRead(PREFIX+"hay"),0,MAX_STOCK);
  water=clampInt((integer)llLinksetDataRead(PREFIX+"water"),0,MAX_STOCK);
