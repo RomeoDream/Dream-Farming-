@@ -30,12 +30,20 @@ class EquineSourceTests(unittest.TestCase):
         self.assertIn("whole(a,2,0,5)", self.herd)
 
     def test_dialogs_obey_twelve_button_limit(self):
-        for match in re.finditer(r'if\(p=="(?:manage|equines|settings)"\)return \[([^\]]+)\];', self.herd):
+        matches = list(re.finditer(r'if\(p=="(?:manage|equines|settings)"\)return \[([^\]]+)\];', self.herd))
+        self.assertEqual(len(matches), 3, "All menu pages must be covered")
+        for match in matches:
             self.assertLessEqual(len(re.findall(r'"[^"]+"', match.group(1))), 12)
         # Stable menu is defined by llDialog, not a named function return.
         stable = re.search(r'llDialog\(who,[^\n]*\[([^\]]+)\],CHANNEL\)', self.stable)
         self.assertIsNotNone(stable)
         self.assertLessEqual(len(re.findall(r'"[^"]+"', stable.group(1))), 12)
+
+    def test_verification_is_scoped_to_herd_and_equines(self):
+        self.assertIn("llGetOwnerKey(who)!=llGetOwner()", self.herd)
+        self.assertIn("(sp==4 || sp==5)", self.herd)
+        self.assertIn("pendingNonce", self.stable)
+        self.assertIn("id!=herdRoot", self.stable)
 
     def test_stable_has_no_double_accounting(self):
         self.assertIn("stableManureEnabled=FALSE", self.stable)
