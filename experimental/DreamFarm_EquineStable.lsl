@@ -116,7 +116,7 @@ load(){
  if(llGetListLength(assigned)>stalls)assigned=llList2List(assigned,0,stalls-1);
 }
 report(key who){
- llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Pending water "+(string)pendingWater+" | Herd "+(string)herdRoot+" | Manure source "+(string)stableManureEnabled+" | Assignments "+llList2CSV(assigned));
+ llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Pending "+pendingKind+" "+(string)pendingWater+" | Retry "+(string)transferAttempts+" | Age "+(string)(pendingWater>0?llGetUnixTime()-pendingStarted:0)+"s | Herd "+(string)herdRoot+" | Manure source "+(string)stableManureEnabled+" | Assignments "+llList2CSV(assigned));
 }
 menu(key who){
  if(menuPage==1)llDialog(who,"Stable settings",["Release last","Stalls +1","Stalls -1","Send feed","Back","Close"],CHANNEL);
