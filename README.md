@@ -1,3 +1,5 @@
+> **SL UUID registration:** Owner avatar, farm and controller UUIDs now drive registration. Install `lsl/DreamFarm_Register.lsl` and follow [SL_REGISTRATION.md](docs/SL_REGISTRATION.md). The current generated set has 20 scripts. Cloudflare migration 0004 and the matching Worker deployment are required before web registration is live.
+
 > **SL test candidate:** Start with [SL_TEST_CANDIDATE.md](docs/SL_TEST_CANDIDATE.md). The active Stable is now generated in `lsl/`, alongside the optional CloudSync companion. Use the downloadable workflow artifact or run `python tools/package_beta.py` for the complete test package. This is controlled-test readiness, not production certification.
 
 # Dream Farming

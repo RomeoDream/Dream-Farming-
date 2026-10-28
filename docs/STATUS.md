@@ -1,3 +1,15 @@
+# SL UUID registration update — 2026-10-27
+
+New farm, owner and controller identities use SL UUIDs. A root registration companion automatically fills owner/root UUIDs, persists the Farm UUID and supports joining an existing farm. Controller menus expose the optional registration companion without a competing touch menu. Existing administrator login approves registration; UUIDs alone grant no access.
+
+Migration 0004 adds UUID mappings without deleting old farm/account/inventory records. Explicit legacy mapping retains passwords, credentials and internal relationships in one transaction. Farm sign-in uses owner UUID, Farm UUID and the existing password. CloudSync reports owner/root UUIDs and the server rejects mismatches. The generated script set now contains 20 scripts.
+
+Local validation: **184 Python/LSL runtime tests and 13 Worker/SQLite tests pass**, including real legacy-schema migration, transactional rollback and UUID account sign-in.
+
+See [SL_REGISTRATION.md](SL_REGISTRATION.md) for installation and deployment order. No live Cloudflare migration/deployment or simulator verification has been performed by this code update.
+
+---
+
 # Second Life test candidate — 2026-10-26
 
 The local farm and equine path are prepared for controlled SL installation. The active Stable is now `src/DreamFarm_EquineStable.lsl` → generated `lsl/DreamFarm_EquineStable.lsl`; the old experimental controller remains historical. The farm now supplies 19 standalone LSL scripts including the optional CloudSync companion.

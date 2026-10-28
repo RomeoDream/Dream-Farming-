@@ -3,6 +3,7 @@
 // Linkset data persists across script resets; atomic snapshots bind inventory to the current object identity.
 integer CHANNEL=-918247;
 integer listenHandle;
+integer registrationAvailable=FALSE;
 integer stalls=4;
 integer hay=0;
 integer water=0;
@@ -178,7 +179,7 @@ report(key who){
  llRegionSayTo(who,0,"Dream Stable | Stalls "+(string)llGetListLength(assigned)+"/"+(string)stalls+" | Hay "+(string)hay+" | Water "+(string)water+" | Bedding "+(string)bedding+" | Manure "+(string)manure+" | Collected "+(string)collectedManure+" | Pending "+pendingKind+" "+(string)pendingWater+" | Retry "+(string)transferAttempts+" | Age "+(string)age+"s | Herd "+(string)herdRoot+" | Manure source "+(string)stableManureEnabled+" | Assignments "+llList2CSV(assigned));
 }
 menu(key who){
- if(menuPage==1)llDialog(who,"Stable settings",["Release last","Stalls +1","Stalls -1","Send feed","Set compost","Send manure","Diagnostics","Back","Close"],CHANNEL);
+ if(menuPage==1)llDialog(who,"Stable settings",["Release last","Stalls +1","Stalls -1","Send feed","Set compost","Send manure","Diagnostics","SL register","Back","Close"],CHANNEL);
  else llDialog(who,"Dream Stable (owner-operated experimental care)",["Status","Add hay","Add water","Add bedding","Muck out","Assign UUID","Set Herd","More","Send water","Care on","Care off","Close"],CHANNEL);
 }
 replyManure(key who,string stream,integer seq,integer qty){
@@ -206,11 +207,15 @@ receiveManure(key who,string message){
 default {
  state_entry(){
   load();
+  llMessageLinked(LINK_THIS,48130,"REGISTER_DISCOVER",llGetOwner());
   llSetTimerEvent(60.0);
   listenHandle=llListen(CHANNEL,"",llGetOwner(),"");
   llListen(herdChannel,"",NULL_KEY,"");
   llListen(NET,"",NULL_KEY,"");
   llSetText("Dream Stable | Equine care prototype",<1.0,0.5,0.8>,1.0);
+ }
+ link_message(integer sender,integer number,string text,key id){
+  if(sender==llGetLinkNumber() && number==48131 && text=="REGISTER_READY" && !registrationAvailable){registrationAvailable=TRUE;llMessageLinked(LINK_THIS,48130,"REGISTER_DISCOVER",llGetOwner());}
  }
  on_rez(integer start){llResetScript();}
  changed(integer change){if(change & CHANGED_OWNER)llResetScript();}
@@ -247,6 +252,11 @@ default {
    pendingAnimal="";pendingNonce="";pendingUntil=0;return;
   }
   if(id!=llGetOwner())return;
+  if(message=="SL register"){
+   if(registrationAvailable)llMessageLinked(LINK_THIS,48130,"REGISTER",id);
+   else llOwnerSay("Install the optional DreamFarm_Register companion in this root first.");
+   return;
+  }
   if(message=="More"){menuPage=1;menu(id);return;}
   if(message=="Back"){menuPage=0;menu(id);return;}
   if(message=="Status"){if(herdRoot!=NULL_KEY && !validHerdRoot(herdRoot))llOwnerSay("Warning: saved Herd object is no longer nearby or same-owner.");report(id);menu(id);return;}
