@@ -1,5 +1,5 @@
 case,action,expected,result,free_memory_bytes,notes
-SL01,Compile all 19 scripts as Mono,No compilation errors,NOT_RUN,,
+SL01,Compile all 20 scripts as Mono,No compilation errors,NOT_RUN,,
 SL02,Open each main and settings menu,No viewer dialog error,NOT_RUN,,
 SL03,Add horse and donkey pairs,Distinct persistent animal records,NOT_RUN,,
 SL04,Assign live equine UUID,Only verified equines accepted,NOT_RUN,,
@@ -21,3 +21,4 @@ SL19,Restart region and recover,Records and pending loads retained,NOT_RUN,,
 SL20,Optional cloud companion sync,Real scoped telemetry and conflict recovery,NOT_RUN,,
 SL21,Optional Garden integration,Finite manure or compost applied once,NOT_RUN,,
 SL22,Optional TXAGO and bank adapters,Live responses match existing contracts,NOT_RUN,,
+SL23,Register and join controllers using SL UUIDs,Correct owner farm and root identities with explicit approval,NOT_RUN,,

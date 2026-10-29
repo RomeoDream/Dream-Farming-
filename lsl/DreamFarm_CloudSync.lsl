@@ -35,7 +35,7 @@ observe(string raw){
  else if(kind=="MACHINE"){kind="equipment";metric="equipment";count=1;}
  else return;
  string metrics=llList2Json(JSON_OBJECT,[metric,count]);
- latest=llList2Json(JSON_OBJECT,["kind",kind,"metrics",JSON_NULL,"observed_at",llGetUnixTime(),"object_id",(string)llGetKey()]);
+ latest=llList2Json(JSON_OBJECT,["kind",kind,"metrics",JSON_NULL,"observed_at",llGetUnixTime(),"object_id",(string)llGetKey(),"owner_uuid",(string)llGetOwner()]);
  latest=llJsonSetValue(latest,["metrics"],metrics);observedAt=llGetUnixTime();
 }
 backoff(){

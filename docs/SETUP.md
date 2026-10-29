@@ -11,6 +11,7 @@ Rez test objects on land where you may build, run scripts and enable physics. Pa
 | Storage shed or parked trailer | `DreamFarm_Storage` | One stock ledger; do not add Machine to this linkset |
 | Processing building | `DreamFarm_Processor` | Select a recipe; one batch at a time |
 | Equine stable | `DreamFarm_EquineStable` | Separate root; see SL_TEST_CANDIDATE.md |
+| SL UUID registration | `DreamFarm_Register` in root | Settings → SL register; see SL_REGISTRATION.md |
 | Cloud telemetry | `DreamFarm_CloudSync` beside Herd, Field or Machine | Optional private per-object token; disabled by default |
 | Individual-animal pen | `DreamFarm_Herd` | Manage adds sandbox adults; maximum eight records |
 | Original cohort pen | `DreamFarm_Livestock` | Optional simpler pen; set species before first boot |

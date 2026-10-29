@@ -62,6 +62,7 @@ class World:
         self.motors = {}
         self.permission_requests = []
         self.http_requests = []
+        self.urls = []
         self.link_names = {2:'DF:Stage:0',3:'DF:Stage:1',4:'DF:Stage:2',5:'DF:Stage:3',6:'DF:Stage:4',7:'DF:Stage:5',8:'Fence',9:'DF:Stage:invalid'}
         self.prim_params = {}
 
@@ -136,6 +137,7 @@ class World:
             'llFrand': lambda n: float(n) * ((self.listen_count % 81 + 10) / 100.0),
             'llGenerateKey': lambda: lummao.Key(str(uuid.uuid4())),
             'llDialog': self.dialog,
+            'llLoadURL': lambda who,text,url:self.urls.append((who,text,url)),
             'llTextBox': lambda who, text, ch: self.dialog(who, text, [], ch),
             'llGetLinkNumber': lambda: 1,
             'llGetNumberOfPrims': lambda: 9,

@@ -1,0 +1,60 @@
+// Dream Farming SL UUID registration helper. Creator: Romeo Dream.
+// Put in the root beside one controller. No administrator secret belongs here.
+string API_URL="https://dream-farming.romeo-hazemoon.workers.dev";
+key farmUUID=NULL_KEY;
+integer channel;
+integer handle;
+integer expires;
+integer entering=FALSE;
+integer companion=FALSE;
+integer VIEW=48100;
+string DATA="dreamfarm:registration:v1";
+integer validUUID(string value){return llStringLength(value)==36 && (key)value!=NULL_KEY;}
+integer saveFarm(key value){
+ integer result=llLinksetDataWrite(DATA,llList2Json(JSON_ARRAY,[(string)llGetOwner(),(string)value]));
+ if(result!=LINKSETDATA_OK && result!=LINKSETDATA_NOUPDATE){llOwnerSay("Farm UUID could not be saved; registration unchanged.");return FALSE;}
+ farmUUID=value;return TRUE;
+}
+show(){
+ if(handle)llListenRemove(handle);
+ channel=-10000-(integer)llFrand(1900000000.0);handle=llListen(channel,"",llGetOwner(),"");expires=llGetUnixTime()+120;
+ llDialog(llGetOwner(),"Dream Farming UUID registration\nOwner: "+(string)llGetOwner()+"\nFarm: "+(string)farmUUID+"\nRoot: "+(string)llGetKey(),["Register","Join farm","Show UUIDs","Close"],channel);
+}
+default{
+ state_entry(){
+  if(llGetLinkNumber()>1){llOwnerSay("Install registration in the root prim.");return;}
+  string raw=llLinksetDataRead(DATA);
+  if(raw!=""){
+   list record=llJson2List(raw);
+   if(llGetListLength(record)!=2 || llList2String(record,0)!=(string)llGetOwner() || !validUUID(llList2String(record,1))){llOwnerSay("Saved farm identity belongs to another owner or is invalid. Preserved; owner reconciliation required.");return;}
+   farmUUID=(key)llList2String(record,1);
+  }else if(!saveFarm(llGetKey()))return;
+  llSetTimerEvent(15.0);
+  llMessageLinked(LINK_THIS,VIEW+31,"REGISTER_READY",llGetOwner());
+  llMessageLinked(LINK_THIS,VIEW+1,"",llGetOwner());
+ }
+ touch_start(integer count){if(!companion && llDetectedKey(0)==llGetOwner() && farmUUID!=NULL_KEY)show();}
+ listen(integer c,string name,key who,string text){
+  if(c!=channel || who!=llGetOwner() || llGetUnixTime()>=expires)return;
+  if(entering){entering=FALSE;if(validUUID(text))saveFarm((key)text);else llOwnerSay("Enter a non-null farm UUID.");show();return;}
+  if(text=="Join farm"){entering=TRUE;llTextBox(who,"Paste the existing farm UUID; this changes only this controller's farm selection, not server ownership.",channel);return;}
+  if(text=="Show UUIDs")llOwnerSay("Owner UUID: "+(string)llGetOwner()+" | Farm UUID: "+(string)farmUUID+" | Root object UUID: "+(string)llGetKey());
+  if(text=="Register"){
+   string url=API_URL+"/register?owner="+(string)llGetOwner()+"&farm="+(string)farmUUID+"&object="+(string)llGetKey();
+   llLoadURL(who,"Open SL farm registration with your UUIDs filled in. Sign in with the existing administrator account to approve.",url);
+  }
+  if(handle)llListenRemove(handle);handle=0;expires=0;
+ }
+ link_message(integer sender,integer number,string text,key id){
+  if(sender!=llGetLinkNumber() || farmUUID==NULL_KEY)return;
+  if(number==VIEW){companion=TRUE;return;}
+  if(number==VIEW+30 && id==llGetOwner()){
+   companion=TRUE;
+   if(text=="REGISTER_DISCOVER")llMessageLinked(LINK_THIS,VIEW+31,"REGISTER_READY",llGetOwner());
+   else if(text=="REGISTER")show();
+  }
+ }
+ timer(){if(handle && llGetUnixTime()>=expires){llListenRemove(handle);handle=0;entering=FALSE;}}
+ changed(integer change){if(change & CHANGED_OWNER)llResetScript();}
+ on_rez(integer start){llResetScript();}
+}

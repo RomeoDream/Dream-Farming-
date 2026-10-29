@@ -17,7 +17,7 @@ class CloudSyncTests(unittest.IsolatedAsyncioTestCase):
         w=await self.ready();h=await World('Herd').boot();await h.submenu('Manage','Equines');await h.choose('Mare')
         raw=await h.s.visual();await w.event('link_message',1,w.s.VIEW,raw,h.key)
         await w.step(60);r=w.http_requests[-1];data=json.loads(r[3]);self.assertEqual(data['revision'],0)
-        self.assertEqual(data['state']['metrics'],{'animals':1})
+        self.assertEqual(data['state']['metrics'],{'animals':1});self.assertEqual(data['state']['owner_uuid'],str(w.owner));self.assertEqual(data['state']['object_id'],str(w.key))
         await w.event('http_response',r[0],200,[],json.dumps({'ok':True,'revision':1}));self.assertEqual(w.s.revision,1)
         await w.boot();await w.step(30);self.assertEqual(w.s.revision,-1);self.assertTrue(w.http_requests[-1][1].endswith('/v1/state'))
     async def test_conflict_and_lost_http_reply_get_revision_before_resend(self):

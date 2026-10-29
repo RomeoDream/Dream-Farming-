@@ -55,6 +55,10 @@ Use SL_TEST_RESULTS.csv for outcomes. Local runtime simulation covers dropped AC
 
 Install Machine + TractorDriver in one fresh root; Cab and Visuals are optional companions. See SETUP.md and FIELD_OPERATIONS.md for sit controls, engine/fuel, PTO/hydraulic/hitch interlocks, 8×8 field coverage, processing and finite manure application. Use a simple physical test build before attaching detailed mesh. Reset/unseat must stop movement. Garden, TXAGO and banking adapters are optional and each requires its own live acceptance test.
 
+## Second Life UUID registration
+
+The current package adds `DreamFarm_Register.lsl` as the twentieth standalone script. See [SL_REGISTRATION.md](SL_REGISTRATION.md) for owner/root UUID detection, farm joining, administrator approval and non-destructive legacy mapping. Registration requires migration 0004 and the matching Worker deployment; local three-prim farming still works without registration.
+
 ## Optional Cloudflare telemetry
 
 Local farming works without this script or an internet connection. Install **one CloudSync companion** beside a Herd, Field or Machine root controller, not beside every prim. Leave disabled unless using a privately provisioned per-object credential. Never place ADMIN_TOKEN or administrator password in a Second Life object.

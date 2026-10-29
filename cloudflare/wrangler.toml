@@ -1,6 +1,8 @@
-name = "dream-farming-api"
+name = "dream-farming"
 main = "src/index.js"
 compatibility_date = "2026-10-01"
+# Preserve operator-managed runtime variables on code deployments.
+keep_vars = true
 
 [[d1_databases]]
 binding = "DB"

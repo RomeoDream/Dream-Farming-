@@ -1,7 +1,8 @@
+import { identityRoutes, resolveFarm } from "./identity.js";
+import { registrationPage } from "./registration.js";
 import { dashboardPage } from "./dashboard.js";
 import { adminLoginPage } from "./admin-login.js";
 import { accountsPage } from "./accounts.js";
-import { adminPage } from "./admin.js";
 // Dream Farming Cloudflare API — first secure state-sync milestone.
 // All authenticated endpoints require a per-object bearer credential.
 // Provision objects through the operator-only enrollment endpoint.
@@ -19,12 +20,11 @@ async function readJson(request) {
   if(!value || typeof value!=="object" || Array.isArray(value))throw new Error("invalid_object");
   return value;
 }
-function validId(s) { return typeof s === "string" && /^[a-zA-Z0-9_-]{1,80}$/.test(s); }
 async function authenticate(request, env) {
   const token = request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{24,128})$/)?.[1];
   if (!token) return null;
   const hash = await sha256(token);
-  return env.DB.prepare("SELECT id, farm_id, revision FROM farm_objects WHERE credential_hash = ? AND revoked = 0").bind(hash).first();
+  return env.DB.prepare("SELECT o.id,o.farm_id,o.revision,o.sl_uuid object_uuid,f.owner_uuid,f.sl_uuid farm_uuid FROM farm_objects o JOIN farms f ON f.id=o.farm_id WHERE o.credential_hash = ? AND o.revoked = 0").bind(hash).first();
 }
 
 // PBKDF2 password verification: unique random salt per farm account.
@@ -37,70 +37,19 @@ async function passwordHash(password,salt,iterations=100000) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const identityResponse=await identityRoutes(request,env,{json,fail,readJson,sha256,encode,passwordHash});
+    if(identityResponse)return identityResponse;
+    if(url.pathname==="/register" && request.method==="GET")return new Response(registrationPage,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store"}});
     if (url.pathname === "/dashboard" && request.method === "GET") return new Response(dashboardPage, {headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store"}});
     if (url.pathname === "/admin-login" && request.method === "GET") return new Response(adminLoginPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
     if (url.pathname === "/farm-login" && request.method === "GET") return new Response(accountsPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
-    if (url.pathname === "/admin" && request.method === "GET") return new Response(adminPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
+    if (url.pathname === "/admin" && request.method === "GET") return new Response(registrationPage, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'none'" } });
     if (url.pathname === "/health" && request.method === "GET") return json({ ok: true, service: "dream-farming", version: 1 });
-    if (url.pathname === "/v1/admin/enroll" && request.method === "POST") {
-      // Configure ADMIN_TOKEN as a Worker secret, never in the repository.
-      const provided = request.headers.get("x-admin-token");
-      if (!env.ADMIN_TOKEN || !provided || provided !== env.ADMIN_TOKEN) return fail("unauthorized", 401);
-      try {
-        const data = await readJson(request);
-        if (![data.farm_id, data.object_id].every(validId) || typeof data.farm_name !== "string" || !data.farm_name.trim() || data.farm_name.length > 120) return fail("invalid_input", 400);
-        const bytes = crypto.getRandomValues(new Uint8Array(32));
-        const credential = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-        const hash = await sha256(credential);
-        await env.DB.prepare("INSERT OR IGNORE INTO farms(id,name) VALUES(?,?)").bind(data.farm_id, data.farm_name).run();
-        const inserted = await env.DB.prepare("INSERT OR IGNORE INTO farm_objects(id,farm_id,credential_hash) VALUES(?,?,?)").bind(data.object_id, data.farm_id, hash).run();
-        if (inserted.meta.changes !== 1) return fail("object_already_exists", 409);
-        return json({ object_id: data.object_id, farm_id: data.farm_id, credential }, 201);
-      } catch (e) { return fail("invalid_request", 400); }
-    }
-    if (url.pathname === "/v1/admin/rotate" && request.method === "POST") {
-      const provided = request.headers.get("x-admin-token");
-      if (!env.ADMIN_TOKEN || !provided || provided !== env.ADMIN_TOKEN) return fail("unauthorized", 401);
-      let data;
-      try { data = await readJson(request); } catch { return fail("invalid_request", 400); }
-      if (!validId(data.farm_id) || !validId(data.object_id)) return fail("invalid_input", 400);
-      const bytes = crypto.getRandomValues(new Uint8Array(32));
-      const credential = encode(bytes);
-      const hash = await sha256(credential);
-      const result = await env.DB.prepare("UPDATE farm_objects SET credential_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND farm_id=? AND revoked=0").bind(hash, data.object_id, data.farm_id).run();
-      if (result.meta.changes !== 1) return fail("object_not_found", 404);
-      return json({ ok: true, object_id: data.object_id, credential });
-    }
-    if (url.pathname === "/v1/admin/accounts" && request.method === "POST") {
-      if (!env.ADMIN_TOKEN || request.headers.get("x-admin-token") !== env.ADMIN_TOKEN) return fail("unauthorized",401);
-      let data; try { data=await readJson(request); } catch { return fail("invalid_request",400); }
-      if (!validId(data.farm_id) || typeof data.login_name!=="string" || data.login_name.trim().length<3 || data.login_name.length>120 || typeof data.password!=="string" || data.password.length<12 || data.password.length>256) return fail("invalid_input",400);
-      const salt=encode(crypto.getRandomValues(new Uint8Array(16)));
-      const hash=await passwordHash(data.password,salt);
-      try {
-        const r=await env.DB.prepare("INSERT INTO farm_accounts(farm_id,login_name,password_salt,password_hash,password_iterations) SELECT id,?,?,?,100000 FROM farms WHERE id=?").bind(data.login_name.trim(),salt,hash,data.farm_id).run();
-        if(r.meta.changes!==1)return fail("farm_not_found",404);
-        return json({ok:true,farm_id:data.farm_id},201);
-      } catch { return fail("account_exists_or_invalid",409); }
-    }
-    if (url.pathname === "/v1/auth/login" && request.method === "POST") {
-      let data; try { data=await readJson(request); } catch { return fail("invalid_request",400); }
-      if(typeof data.login_name!=="string" || typeof data.password!=="string")return fail("invalid_credentials",401);
-      const row=await env.DB.prepare("SELECT farm_id,password_salt,password_hash,password_iterations FROM farm_accounts WHERE login_name=? COLLATE NOCASE").bind(data.login_name).first();
-      if(!row)return fail("invalid_credentials",401);
-      const hash=await passwordHash(data.password,row.password_salt,row.password_iterations);
-      if(hash!==row.password_hash)return fail("invalid_credentials",401);
-      const token=encode(crypto.getRandomValues(new Uint8Array(32)));
-      const tokenHash=await sha256(token);
-      const expires=Math.floor(Date.now()/1000)+3600;
-      await env.DB.prepare("INSERT INTO farm_sessions(token_hash,farm_id,expires_at) VALUES(?,?,?)").bind(tokenHash,row.farm_id,expires).run();
-      return json({token,expires_at:expires,farm_id:row.farm_id});
-    }
     if (url.pathname === "/v1/auth/me" && request.method === "GET") {
       const bearer=request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{24,128})$/)?.[1];
       if(!bearer)return fail("unauthorized",401);
-      const row=await env.DB.prepare("SELECT farm_id FROM farm_sessions WHERE token_hash=? AND expires_at>?").bind(await sha256(bearer),Math.floor(Date.now()/1000)).first();
-      return row?json({farm_id:row.farm_id}):fail("unauthorized",401);
+      const row=await env.DB.prepare("SELECT f.sl_uuid farm_id,f.owner_uuid FROM farm_sessions s JOIN farms f ON f.id=s.farm_id WHERE s.token_hash=? AND s.expires_at>?").bind(await sha256(bearer),Math.floor(Date.now()/1000)).first();
+      return row?json({farm_id:row.farm_id,owner_uuid:row.owner_uuid}):fail("unauthorized",401);
     }
     if (url.pathname === "/v1/admin/bootstrap" && request.method === "POST") {
       if (!env.ADMIN_TOKEN || request.headers.get("x-admin-token") !== env.ADMIN_TOKEN) return fail("unauthorized",401);
@@ -137,11 +86,13 @@ export default {
       if(!cookie)return fail("unauthorized",401);
       const admin=await env.DB.prepare("SELECT a.id FROM admin_sessions s JOIN admin_accounts a ON a.id=s.admin_id WHERE s.token_hash=? AND s.expires_at>? AND a.disabled=0").bind(await sha256(cookie),Math.floor(Date.now()/1000)).first();
       if(!admin)return fail("unauthorized",401);
-      const selected=url.searchParams.get("farm_id");
-      if(selected && !validId(selected))return fail("invalid_farm_id",400);
+      const requestedFarm=url.searchParams.get("farm_id");
+      const selectedRecord=requestedFarm?await resolveFarm(env,requestedFarm):null;
+      if(requestedFarm && !selectedRecord)return fail("farm_not_found_or_unmapped",404);
+      const selected=selectedRecord?.id;
       const objectSql=selected
-        ? "SELECT id,farm_id,revision,updated_at,revoked FROM farm_objects WHERE farm_id=? ORDER BY updated_at DESC LIMIT 100"
-        : "SELECT id,farm_id,revision,updated_at,revoked FROM farm_objects ORDER BY updated_at DESC LIMIT 100";
+        ? "SELECT o.sl_uuid,f.sl_uuid public_farm_uuid,f.owner_uuid,o.revision,o.updated_at,o.revoked FROM farm_objects o JOIN farms f ON f.id=o.farm_id WHERE o.farm_id=? ORDER BY o.updated_at DESC LIMIT 100"
+        : "SELECT o.sl_uuid,f.sl_uuid public_farm_uuid,f.owner_uuid,o.revision,o.updated_at,o.revoked FROM farm_objects o JOIN farms f ON f.id=o.farm_id ORDER BY o.updated_at DESC LIMIT 100";
       const objectRows=selected
         ? await env.DB.prepare(objectSql).bind(selected).all()
         : await env.DB.prepare(objectSql).all();
@@ -150,7 +101,7 @@ export default {
         return Number.isFinite(stamp) && Date.now()-stamp<=300000 && Date.now()>=stamp;
       };
       const telemetry=objectRows.results.map(o=>({
-        id:o.id,farm_id:o.farm_id,revision:o.revision,revoked:!!o.revoked,
+        id:o.sl_uuid,farm_id:o.public_farm_uuid,owner_uuid:o.owner_uuid,needs_uuid_mapping:!o.sl_uuid || !o.public_farm_uuid,revision:o.revision,revoked:!!o.revoked,
         updated_at:o.updated_at,
         // An unchanged initial record is not evidence of a live simulator connection.
         reporting:o.revision>0 && !o.revoked && fresh(o),
@@ -171,7 +122,7 @@ export default {
         if(Number.isSafeInteger(value)&&value>=0&&value<=1000000)totals[pair[0]]=(totals[pair[0]]??0)+value;
       }
       if(selected) {
-        const farm=await env.DB.prepare("SELECT id,name FROM farms WHERE id=?").bind(selected).first();
+        const farm=await env.DB.prepare("SELECT sl_uuid id,name,owner_uuid FROM farms WHERE id=?").bind(selected).first();
         if(!farm)return fail("farm_not_found",404);
         const [objects,materials,transfers,inventory]=await Promise.all([
           env.DB.prepare("SELECT COUNT(*) n FROM farm_objects WHERE farm_id=?").bind(selected).first(),
@@ -179,15 +130,15 @@ export default {
           env.DB.prepare("SELECT COUNT(*) n FROM transfer_receipts WHERE farm_id=?").bind(selected).first(),
           env.DB.prepare("SELECT material,quantity FROM inventory WHERE farm_id=? ORDER BY quantity DESC LIMIT 10").bind(selected).all()
         ]);
-        const all=await env.DB.prepare("SELECT id,name FROM farms ORDER BY name LIMIT 100").all();
-        return json({counts:{farms:1,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:all.results,inventory:inventory.results,telemetry,totals,selected_farm:selected});
+        const all=await env.DB.prepare("SELECT sl_uuid id,name,owner_uuid FROM farms ORDER BY name LIMIT 100").all();
+        return json({counts:{farms:1,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:all.results,inventory:inventory.results,telemetry,totals,selected_farm:selectedRecord.sl_uuid});
       }
       const [farms,objects,materials,transfers,list,inventory]=await Promise.all([
         env.DB.prepare("SELECT COUNT(*) n FROM farms").first(),
         env.DB.prepare("SELECT COUNT(*) n FROM farm_objects").first(),
         env.DB.prepare("SELECT COUNT(*) n FROM inventory").first(),
         env.DB.prepare("SELECT COUNT(*) n FROM transfer_receipts").first(),
-        env.DB.prepare("SELECT id,name FROM farms ORDER BY name LIMIT 100").all(),
+        env.DB.prepare("SELECT sl_uuid id,name,owner_uuid FROM farms ORDER BY name LIMIT 100").all(),
         env.DB.prepare("SELECT material,SUM(quantity) quantity FROM inventory GROUP BY material ORDER BY quantity DESC LIMIT 10").all()
       ]);
       return json({counts:{farms:farms.n,objects:objects.n,materials:materials.n,transfers:transfers.n},farms:list.results,inventory:inventory.results,telemetry,totals});
@@ -205,6 +156,7 @@ export default {
       let data;
       try { data = await readJson(request); } catch { return fail("invalid_json_or_size", 400); }
       if (!Number.isSafeInteger(data.revision) || data.revision < 0 || typeof data.state !== "object" || data.state === null || Array.isArray(data.state)) return fail("invalid_state", 400);
+      if(identity.object_uuid && (data.state.object_id!==identity.object_uuid || data.state.owner_uuid!==identity.owner_uuid))return fail("sl_identity_mismatch",403);
       const state = JSON.stringify(data.state);
       if (state.length > 12000) return fail("state_too_large", 413);
       const result = await env.DB.prepare("UPDATE farm_objects SET state_json=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND farm_id=? AND revision=? AND revoked=0")
@@ -217,7 +169,7 @@ export default {
     }
     if (url.pathname === "/v1/state" && request.method === "GET") {
       const row = await env.DB.prepare("SELECT revision,state_json,updated_at FROM farm_objects WHERE id=? AND farm_id=?").bind(identity.id, identity.farm_id).first();
-      return row ? json({ revision: row.revision, state: JSON.parse(row.state_json), updated_at: row.updated_at }) : fail("not_found", 404);
+      return row ? json({ revision: row.revision, farm_id:identity.farm_uuid,owner_uuid:identity.owner_uuid,object_id:identity.object_uuid,state: JSON.parse(row.state_json), updated_at: row.updated_at }) : fail("not_found", 404);
     }
     return fail("not_found", 404);
   }

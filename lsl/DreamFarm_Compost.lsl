@@ -125,6 +125,7 @@ integer UI_TOUCH=TRUE;
 integer UI_HOVER=TRUE;
 integer UI_ROOT_ONLY=FALSE;
 integer SPREAD_LINKS=FALSE;
+integer registrationAvailable=FALSE;
 key LOAD_SOURCE;
 
 integer iv(integer i) { return llList2Integer(S,i); }
@@ -227,7 +228,7 @@ show(string p)
     {inputMode=TRUE;llTextBox(llGetOwner(),"Paste destination object's root UUID. Pending deliveries must finish before changing destination.",channel);return;}
     if(textPage(p)){inputMode=2;llTextBox(visitor,textPrompt(),channel);return;}
     offered=buttons(p);
-    if(p=="settings")offered+=["Diagnostics"];
+    if(p=="settings"){offered+=["Diagnostics"];if(registrationAvailable)offered+=["SL register"];}
     if(visitor!=llGetOwner())
     {list filtered=[];integer k;for(k=0;k<llGetListLength(offered);++k)if(workerCommand(llList2String(offered,k)))filtered+=[llList2String(offered,k)];offered=filtered;}
     llDialog(visitor,clipBytes(llGetSubString(summary(),0,450),450),offered,channel);
@@ -311,6 +312,7 @@ boot()
         else if(llList2Integer(llJson2List(raw),0)!=SCHEMA)save(llJson2List(raw));
     }
     llListen(NET,"",NULL_KEY,"");llListen(DASH,"",NULL_KEY,"");extraBoot();llSetTimerEvent(15.0);
+    llMessageLinked(LINK_THIS,VIEW+30,"REGISTER_DISCOVER",llGetOwner());
     if(!fault){advance();service();}render();
 }
 default
@@ -342,6 +344,7 @@ default
         integer input=inputMode;close();
         if(!advance()){llOwnerSay("Catching up saved farm time. Try again shortly.");return;}
         if(msg=="Close")return;
+        if(msg=="SL register" && who==llGetOwner() && registrationAvailable){llMessageLinked(LINK_THIS,VIEW+30,"REGISTER",who);return;}
         if(msg=="Back"){show("main");return;}
         list before=S;string result="";
         if(input==2)result=action(msg);
@@ -370,6 +373,6 @@ default
         if(!fault){advance();service();}render();
     }
     link_message(integer sender,integer number,string text,key id)
-    {if(number==VIEW+1)render();else extraLink(sender,number,text,id);}
+    {if(sender==llGetLinkNumber() && number==VIEW+31 && text=="REGISTER_READY")registrationAvailable=TRUE;else if(number==VIEW+1)render();else extraLink(sender,number,text,id);}
 }
 
